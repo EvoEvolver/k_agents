@@ -1,4 +1,3 @@
-import warnings
 from typing import Dict, Any, List
 
 from labchronicle import log_and_record
@@ -11,7 +10,8 @@ from k_agents.staging import find_the_stage_label_based_on_description
 
 from IPython.core.display import display, HTML
 from leeq.experiments import Experiment
-
+import numpy
+np = numpy
 
 __all__ = ["AIInstructionExperiment", "FullyAutomatedExperiment", "AIRun", "AutoRun"]
 
@@ -92,17 +92,21 @@ class AIStagedExperiment(Experiment):
         input_var_table = VariableTable()
         for key, value in kwargs.items():
             input_var_table.add_variable(key, value)
+        # input_var_table.add_variable("np", np)
 
         self.stages: List[Stage] = stages
 
         leeq_code_ltm, exps_var_table = build_leeq_code_ltm()
-        module_var_table = VariableTable()
-
         code_cog_model = CodegenModel()
         for idea in leeq_code_ltm.ideas:
             code_cog_model.lt_memory.add_idea(idea)
         code_cog_model.n_recall_items = 5  # Number of items to recall in cognitive model
         var_table: VariableTable = VariableTable()
+
+        moduler_var_table = VariableTable()
+        moduler_var_table.add_variable("np", np)
+        moduler_var_table.add_variable("numpy", np)
+        var_table.add_parent_table(moduler_var_table)
 
         var_table.add_parent_table(exps_var_table)
         var_table.add_parent_table(input_var_table)
@@ -175,7 +179,7 @@ class AIStagedExperiment(Experiment):
                     new_var_table = run_stage_description(curr_stage)
                     exp_object = get_exp_from_var_table(new_var_table)
                     if exp_object is None:
-                        warnings.warn(f"Experiment object not found in the variable table.")
+                        logger.warning(f"Experiment object not found in the variable table.")
                         continue
                     self.experiment_history.append(exp_object)
                     experiment_result = exp_object.get_ai_inspection_results()

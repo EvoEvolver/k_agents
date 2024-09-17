@@ -1,8 +1,10 @@
 from typing import List
 
+from mllm.utils import parallel_map
+
 from .stage_execution import Stage
 import json
-
+import mllm
 
 def stages_to_html(stages_list):
     stages_dict = {stage.label: stage.to_dict() for stage in stages_list}
@@ -54,8 +56,8 @@ def remove_unused_stages_and_update_next(stage_info_list: List[dict]) -> List[di
     }}
     """
 
-    import mllm
-    chat = mllm.Chat(prompt, "You are a very smart and helpful assistant who only reply in JSON dict")
+    chat = mllm.Chat(prompt,
+                     "You are a very smart and helpful assistant who only reply in JSON dict")
     updated_stage_info = chat.complete(parse="dict", expensive=True, cache=True)
     return updated_stage_info["stages"]
 
@@ -86,24 +88,41 @@ def refine_stage_description(res: dict) -> dict:
 
     - If the generated description contains information not related to the input, remove it. 
     - If the generated description contains objectives or goals, remove them.
-    - Quote the the parameters and the values in the format of `"<parameter name>=<parameter value>"`.
+    - Quote the the parameters and the values in the format of `"<parameter name>=<parameter value>"` if the actual values are present in the description. 
+        The values should be the actual values, not placeholders. 
     - Only modify the parts described above, keep the rest of the description as is.
     - If this stage only contains data and result analysis and interpretation without carrying out any experiment,
-        please set the <contains_experiment> to False. Otherwise set it to True.
+      please set the <contains_experiment> to False. Otherwise set it to True.
+    - If the generated description contains information that is not present in the reference, for example the details
+       how to implement each stages but they are not specifically described in the reference, remove these information.
 
-    Follow the following  example format exactly and do not include any additional information in the description.
+    Follow the following example format exactly and strictly and do not include any additional information
+     in the description. Do not include any information that is not presented in the description, such as the details
+     in how to implement each steps based on your knowledge.
 
-    Example output:
+    Example output when no parameters and their values are present:
+    <example 1>
+    {{
+        "analysis":"<Describe your thought process for updating the stage description.>",
+        "description":"Conduct the <experiment name>.",
+        "contains_experiment": <true/false>
+    }}
+    </example 1>
+
+    Example output when parameters and their values are present:
+     <example 2>
     {{
         "analysis":"<Describe your thought process for updating the stage description.>",
         "description":"Conduct the <experiment name> with parameters <parameter list for experiment>.",
         "contains_experiment": <true/false>
     }}
+    </example 2>
+
 
     """
 
-    import mllm
-    chat = mllm.Chat(prompt, "You are a very smart and helpful assistant who only reply in JSON dict")
+    chat = mllm.Chat(prompt,
+                     "You are a very smart and helpful assistant who only reply in JSON dict")
     updated_res = chat.complete(parse="dict", expensive=True, cache=True)
 
     new_res = {
@@ -166,6 +185,7 @@ Note: Generate as less stages as possible, ideally just one stage, but make sure
 Note: If multiple sets of parameters are used for the same experiment, they should be considered into different stages.
 Note: The data and result analysis and interpretation should not be considered as a stage.
 Note: Refinement of the parameters should be included in the same stage, not in a separate stage.
+Note: Do not include any additional information that is not present in the description, for example the details how to implement each stages.
 
 - ExperimentDescription: Provide a detailed procedural outline for each stage of the experiment. The description should explicitly state the name of the experiment, list all parameters involved, and clearly outline the steps to be taken. This information will be distributed among various team members, who will carry out the tasks. Ensure that each instruction is clear and self-sufficient, enabling team members to execute their respective parts without needing additional context or clarification. Do not include objectives or goals in the description.
 
@@ -215,10 +235,9 @@ The NEXT key must be a string detailing the transition conditions. Do not use "r
 </output_example>"""
 
     completed_prompt = prompt
-    import mllm
-    from mllm.utils import parallel_map
 
-    chat = mllm.Chat(completed_prompt, "You are a very smart and helpful assistant who only reply in JSON dict")
+    chat = mllm.Chat(completed_prompt,
+                     "You are a very smart and helpful assistant who only reply in JSON dict")
     res = chat.complete(parse="dict", expensive=True, cache=True)
     stages = []
 
@@ -229,12 +248,14 @@ The NEXT key must be a string detailing the transition conditions. Do not use "r
         stage_content['Overview'] = overview
         stage_content['label'] = stage_name
 
-    stages_info = [k[1] for k in sorted(parallel_map(_get_stage_from_agent_response, res.items()), key=lambda x: x[0])]
+    stages_info = [k[1] for k in
+                   sorted(parallel_map(_get_stage_from_agent_response, res.items()),
+                          key=lambda x: x[0])]
 
     # Check if there is any stage marked as contains_experiment=False
     has_stage_need_to_remove = len([stage for stage in stages_info if
-                                    stage['label'] not in ['Complete', 'Fail'] and not stage[
-                                        'contains_experiment']]) > 0
+                                    stage['label'] not in ['Complete', 'Fail'] and not
+                                    stage['contains_experiment']]) > 0
 
     if has_stage_need_to_remove:
         stages_info = remove_unused_stages_and_update_next(stages_info)
@@ -292,10 +313,8 @@ def find_the_stage_label_based_on_description(stages: List[Stage], description: 
         }}
     """
 
-    import mllm
-    from mllm.utils import parallel_map
-
-    chat = mllm.Chat(prompt, "You are a very smart and helpful assistant who only reply in JSON dict")
+    chat = mllm.Chat(prompt,
+                     "You are a very smart and helpful assistant who only reply in JSON dict")
     res = chat.complete(parse="dict", expensive=True, cache=True)
 
     for stage in stages:
