@@ -8,6 +8,7 @@ from mllm import Chat
 from mllm.utils import parallel_map
 from mllm.utils.parser import Parse
 
+
 from k_agents.ideanet.lt_memory import IdeaResult, LongTermMemory, EmbedIdea
 from k_agents.ideanet.w_memory import WorkingMemory
 from k_agents.variable_table import VariableTable
@@ -192,7 +193,7 @@ def build_leeq_code_ltm(add_document_procedures=True) -> Tuple[LongTermMemory, V
             classes.append(class_obj)
 
     # Load the AI automated experiment class for nested execution.
-    from leeq.experiments import AutoRun
+    from k_agents.experiment.automation import AutoRun
     # classes.append(FullyAutomatedExperiment)
     # classes.append(AIInstructionExperiment)
     # classes.append(AIRun)

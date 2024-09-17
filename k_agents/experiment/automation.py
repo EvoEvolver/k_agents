@@ -1,21 +1,26 @@
+import warnings
 from typing import Dict, Any, List
 
 from labchronicle import log_and_record
 
-from k_agents.staging.stage_execution import Stage, check_if_needed_to_break_down
+from k_agents.staging.stage_execution import check_if_needed_to_break_down, Stage, \
+    get_exp_from_var_table
 from k_agents.staging.stage_generation import get_stages_from_description, stages_to_html
 from k_agents.notebook_utils import show_spinner, hide_spinner
 from k_agents.codegen.codegen import CodegenModel, get_codegen_wm
 from k_agents.staging import find_the_stage_label_based_on_description
-
+from k_agents.staging.stage_transition import get_next_stage_label, \
+    generate_new_stage_description
+from leeq.utils.ai.display_chat.notebooks import display_chat, code_to_html, dict_to_html
 from IPython.core.display import display, HTML
 from leeq.experiments import Experiment
+from k_agents.variable_table import VariableTable
+from k_agents.indexer.code_indexer import build_leeq_code_ltm
+from leeq.utils.ai.display_chat.notebooks import display_chat, code_to_html
 import numpy
+
 np = numpy
-
 __all__ = ["AIInstructionExperiment", "FullyAutomatedExperiment", "AIRun", "AutoRun"]
-
-
 def execute_experiment_from_prompt(prompt: str, **kwargs):
     """
     Execute an experiment from a prompt.
@@ -32,9 +37,7 @@ def execute_experiment_from_prompt(prompt: str, **kwargs):
     The variable table after the experiment is run.
 
     """
-    from k_agents.variable_table import VariableTable
-    from k_agents.indexer.code_indexer import build_leeq_code_ltm
-    from leeq.utils.ai.display_chat.notebooks import display_chat, code_to_html
+
 
     spinner_id = show_spinner(f"Interpreting experiment...")
     input_var_table = VariableTable()
@@ -85,9 +88,7 @@ class AIStagedExperiment(Experiment):
         Returns
         -------
         """
-        from k_agents.variable_table import VariableTable
-        from k_agents.indexer.code_indexer import build_leeq_code_ltm
-        from leeq.utils.ai.display_chat.notebooks import display_chat, code_to_html, dict_to_html
+
 
         input_var_table = VariableTable()
         for key, value in kwargs.items():
@@ -179,7 +180,7 @@ class AIStagedExperiment(Experiment):
                     new_var_table = run_stage_description(curr_stage)
                     exp_object = get_exp_from_var_table(new_var_table)
                     if exp_object is None:
-                        logger.warning(f"Experiment object not found in the variable table.")
+                        warnings.warn(f"Experiment object not found in the variable table.")
                         continue
                     self.experiment_history.append(exp_object)
                     experiment_result = exp_object.get_ai_inspection_results()
@@ -357,15 +358,12 @@ AIRun = AIInstructionExperiment
 AutoRun = FullyAutomatedExperiment
 
 if __name__ == '__main__':
-    from k_agents.variable_table import VariableTable
-    from k_agents.staging import get_codegen_wm, CodegenModel
-    from k_agents.indexer.code_indexer import build_leeq_code_ltm
     from k_agents.ideanet.recall_logger import RecallLogger
 
     prompt = "Do qubit measurement calibration to update the GMM model."
     wm = get_codegen_wm(prompt, VariableTable())
     leeq_code_ltm, exps_var_table = build_leeq_code_ltm()
-    code_cog_model = CodegenModel(rounds=1)
+    code_cog_model = CodegenModel()
     code_cog_model.n_recall_items = 5
     for idea in leeq_code_ltm.ideas:
         code_cog_model.lt_memory.add_idea(idea)
