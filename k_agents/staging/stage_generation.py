@@ -2,7 +2,7 @@ from typing import List
 
 from mllm.utils import parallel_map
 
-from .stage_execution import Stage
+from k_agents.staging.stage_execution import Stage
 import json
 import mllm
 
@@ -36,25 +36,25 @@ def remove_unused_stages_and_update_next(stage_info_list: List[dict]) -> List[di
     """
 
     prompt = f"""
-    You have created a list of stages for an experiment. Your task is to modify this list based on specific criteria:
+You have created a list of stages for an experiment. Your task is to modify this list based on specific criteria:
 
-    - Identify and remove any stages that are marked with 'contains_experiment=False'. Assume these stages are successful by default.
-    - For the remaining stages, update the rule for transitioning to the next stage based on the results of the experiment.
-    - Keep the rest information of each stage unchanged, return in the same format as the input.
-    - Keep the 'Complete' and 'Fail' stages as the final stages of the experiment.
+- Identify and remove any stages that are marked with 'contains_experiment=False'. Assume these stages are successful by default.
+- For the remaining stages, update the rule for transitioning to the next stage based on the results of the experiment.
+- Keep the rest information of each stage unchanged, return in the same format as the input.
+- Keep the 'Complete' and 'Fail' stages as the final stages of the experiment.
 
-    This process ensures that the list reflects only the stages actively involved in the experiment and adjusts the workflow according to experimental outcomes.
+This process ensures that the list reflects only the stages actively involved in the experiment and adjusts the workflow according to experimental outcomes.
 
-    <stages>
-    {json.JSONEncoder().encode(stage_info_list)}
-    </stages>
+<stages>
+{json.JSONEncoder().encode(stage_info_list)}
+</stages>
 
-    Return format:
+Return format:
 
-    {{
-    "stages": List[dict]
-    }}
-    """
+{{
+"stages": List[dict]
+}}
+"""
 
     chat = mllm.Chat(prompt,
                      "You are a very smart and helpful assistant who only reply in JSON dict")
@@ -71,55 +71,55 @@ def refine_stage_description(res: dict) -> dict:
     """
 
     prompt = f"""
-    Please refine the description generated from the input with the following condition. Note that the description
-    may only reflect part of the input.
+Please refine the description generated from the input with the following condition. Note that the description
+may only reflect part of the input.
 
-    <input prompt>
-    {res["Reference"]}
-    </input prompt>
+<input prompt>
+{res["Reference"]}
+</input prompt>
 
-    <generated title>
-    {res['Title']}
-    </generated title>
+<generated title>
+{res['Title']}
+</generated title>
 
-    <generated description>
-    {res['ExperimentDescription']}
-    </generated description>
+<generated description>
+{res['ExperimentDescription']}
+</generated description>
 
-    - If the generated description contains information not related to the input, remove it. 
-    - If the generated description contains objectives or goals, remove them.
-    - Quote the the parameters and the values in the format of `"<parameter name>=<parameter value>"` if the actual values are present in the description. 
-        The values should be the actual values, not placeholders. 
-    - Only modify the parts described above, keep the rest of the description as is.
-    - If this stage only contains data and result analysis and interpretation without carrying out any experiment,
-      please set the <contains_experiment> to False. Otherwise set it to True.
-    - If the generated description contains information that is not present in the reference, for example the details
-       how to implement each stages but they are not specifically described in the reference, remove these information.
+- If the generated description contains information not related to the input, remove it. 
+- If the generated description contains objectives or goals, remove them.
+- Quote the the parameters and the values in the format of `"<parameter name>=<parameter value>"` if the actual values are present in the description. 
+    The values should be the actual values, not placeholders. 
+- Only modify the parts described above, keep the rest of the description as is.
+- If this stage only contains data and result analysis and interpretation without carrying out any experiment,
+  please set the <contains_experiment> to False. Otherwise set it to True.
+- If the generated description contains information that is not present in the reference, for example the details
+   how to implement each stages but they are not specifically described in the reference, remove these information.
 
-    Follow the following example format exactly and strictly and do not include any additional information
-     in the description. Do not include any information that is not presented in the description, such as the details
-     in how to implement each steps based on your knowledge.
+Follow the following example format exactly and strictly and do not include any additional information
+ in the description. Do not include any information that is not presented in the description, such as the details
+ in how to implement each steps based on your knowledge.
 
-    Example output when no parameters and their values are present:
-    <example 1>
-    {{
-        "analysis":"<Describe your thought process for updating the stage description.>",
-        "description":"Conduct the <experiment name>.",
-        "contains_experiment": <true/false>
-    }}
-    </example 1>
+Example output when no parameters and their values are present:
+<example 1>
+{{
+    "analysis":"<Describe your thought process for updating the stage description.>",
+    "description":"Conduct the <experiment name>.",
+    "contains_experiment": <true/false>
+}}
+</example 1>
 
-    Example output when parameters and their values are present:
-     <example 2>
-    {{
-        "analysis":"<Describe your thought process for updating the stage description.>",
-        "description":"Conduct the <experiment name> with parameters <parameter list for experiment>.",
-        "contains_experiment": <true/false>
-    }}
-    </example 2>
+Example output when parameters and their values are present:
+ <example 2>
+{{
+    "analysis":"<Describe your thought process for updating the stage description.>",
+    "description":"Conduct the <experiment name> with parameters <parameter list for experiment>.",
+    "contains_experiment": <true/false>
+}}
+</example 2>
 
 
-    """
+"""
 
     chat = mllm.Chat(prompt,
                      "You are a very smart and helpful assistant who only reply in JSON dict")
@@ -324,7 +324,8 @@ def find_the_stage_label_based_on_description(stages: List[Stage], description: 
 
 if __name__ == '__main__':
     description_ramsey = '''
-## Thought
+# Gate Frequency Calibration
+## Background
 
 Ramsey experiment can predict the qubit frequency different to the frequency I am driving it. First I guess a qubit frequency (which already set in the system), and assume the difference is no more than 10 MHz. Therefore I run a Ramsey experiment with frequency offset 10 MHz. Then I wish to do a more accurate calibration by increase the experiment time, and reduce the offset to 1MHz. If this experiment failed and show a value more than 3 MHz its likely that the initial guess is more than 10MHz away from the qubit. Therefore we go back and run experiment at 20MHz offset again. After it succeeded, we do a fine calibration with offset 0.1MHz.
 
@@ -340,9 +341,9 @@ Ramsey experiment can predict the qubit frequency different to the frequency I a
 '''
     description_rabi = '''
 
-    # Gate Amplitude Calibration
+# Gate Amplitude Calibration
 
-## Thought
+## Background
 
 To accurately calibrate the amplitude of the control pulses for our qubit gates, we start with a Rabi oscillation experiment. This experiment helps determine the amplitude required to perform a full rotation on the Bloch sphere. We begin the calibration with a preliminary range of pulse durations starting from 0.01 microseconds up to 0.15 microseconds, incrementing by 0.001 microseconds each step. Successful determination of the Rabi frequency from these measurements will indicate the optimal amplitude setting for the qubit gates.
 
