@@ -18,8 +18,8 @@ class Experiment:
     def __init__(self, *args, **kwargs):
         self._ai_inspection_results = {}
         self._ai_final_analysis = None
-        self._browser_function_results = {}
-        self._browser_function_images = {}
+        self._plot_function_result_objs = {}
+        self._plot_function_images = {}
 
     def _check_arguments(self, func, *args, **kwargs):
         """
@@ -64,7 +64,6 @@ class Experiment:
         finally:
             self._post_run()
 
-
     def run_simulated(self, *args, **kwargs):
         """
         Run the experiment in simulation mode. This is useful for debugging.
@@ -92,20 +91,29 @@ class Experiment:
 
         try:
             if has_visual_analyze_prompt(func):
-                if self._browser_function_images.get(func.__qualname__) is None:
+                if self._plot_function_images.get(func.__qualname__) is None:
                     self._execute_single_browsable_plot_function(func,
                                                                  build_static_image=True)
 
-                image = self._browser_function_images.get(func.__qualname__)
+                image = self._plot_function_images.get(func.__qualname__)
+                prompt = get_visual_analyze_prompt(func)
 
                 spinner_id = show_spinner(f"Vision AI is inspecting the plots...")
 
-                prompt = get_visual_analyze_prompt(func)
                 inspect_answer = visual_inspection(image, prompt, func._file_path)
-                self._ai_inspection_results[func.__qualname__] = inspect_answer
 
                 hide_spinner(spinner_id)
+
+                self._ai_inspection_results[func.__qualname__] = inspect_answer
+
                 return inspect_answer
+
+            else:
+                # Currently, only visual inspection is supported.
+                # However, it is possible to add more inspection methods here.
+                raise ValueError(
+                    f"Function {func.__qualname__} is not an AI inspection function."
+                )
 
         except Exception as e:
             self.log_warning(
@@ -127,17 +135,6 @@ class Experiment:
             except Exception as e:
                 msg = f"Error when executing the browsable plot function {name}:{e}."
                 self.log_warning(msg)
-
-    def _get_all_ai_inspectable_functions(self) -> dict:
-        """
-        Get all the AI inspectable functions.
-
-        Returns:
-            dict: The AI inspectable functions.
-        """
-        return dict(
-            [(name, func) for name, func in self.get_browser_functions() if
-             has_visual_analyze_prompt(func)])
 
     def get_analyzed_result_prompt(self) -> Union[str, None]:
         """
@@ -183,7 +180,7 @@ class Experiment:
             if build_static_image:
                 from leeq.utils.ai.utils import matplotlib_plotly_to_pil
                 image = matplotlib_plotly_to_pil(result)
-                self._browser_function_images[func.__qualname__] = image
+                self._plot_function_images[func.__qualname__] = image
 
         except Exception as e:
             self.log_warning(
@@ -193,7 +190,7 @@ class Experiment:
             self.log_warning(f"{e}")
             raise e
 
-        self._browser_function_results[func.__qualname__] = result
+        self._plot_function_result_objs[func.__qualname__] = result
 
     def get_ai_inspection_results(self, inspection_method='full', ignore_cache=False):
         """
@@ -212,7 +209,7 @@ class Experiment:
             f"inspection_method must be 'full', 'visual_only' or 'fitting_only', got {inspection_method}"
 
         if inspection_method != 'fitting_only':
-            for name, func in self._get_all_ai_inspectable_functions().items():
+            for name, func in self.get_visual_inspection_functions():
 
                 if self._ai_inspection_results.get(func.__qualname__) is None:
                     try:
@@ -265,7 +262,7 @@ Document of this experiment:
         return ai_inspection_results
 
     def run_ai_inspection(self):
-        for name, func in self.get_browser_functions():
+        for name, func in self.get_visual_inspection_functions():
             inspect_answer = self._run_ai_inspection_on_single_function(func)
             if inspect_answer is not None:
                 color = 'light_green' if inspect_answer['success'] else 'light_red'
@@ -274,6 +271,14 @@ Document of this experiment:
                 display_chat(agent_name=f"Inspection AI",
                              content='<br>' + html,
                              background_color=color)
+
+    @classmethod
+    def get_visual_inspection_functions(cls):
+        tagged_methods = []
+        for name, method in inspect.getmembers(cls, inspect.isfunction):
+            if getattr(method, "_visual_prompt", None):
+                tagged_methods.append((name, method))
+        return tagged_methods
 
     @classmethod
     def get_browser_functions(cls):
@@ -305,7 +310,7 @@ Document of this experiment:
         for name, func in self.get_browser_functions():
             try:
                 self._execute_single_browsable_plot_function(func)
-                result = self._browser_function_results[func.__qualname__]
+                result = self._plot_function_result_objs[func.__qualname__]
             except Exception as e:
                 self.log_warning(
                     f"Error when executing the browsable plot function {name}:{e}."
