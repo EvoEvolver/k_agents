@@ -1,3 +1,4 @@
+import functools
 import inspect
 from typing import Union, Callable, Any, Dict, List
 
@@ -19,48 +20,42 @@ class Experiment:
         self.run_args = None
         self.run_kwargs = None
 
-    def _check_arguments(self, func, *args, **kwargs):
-        """
-        Check the arguments of the function.
-
-        Parameters:
-            func (callable): The function to check.
-            args (list): The arguments of the function.
-            kwargs (dict): The keyword arguments of the function.
-
-        Returns:
-            dict: The arguments of the function.
-        """
-        sig = inspect.signature(func)
-
-        if 'ai_inspection' in kwargs and 'ai_inspection' not in sig.parameters:
-            del kwargs['ai_inspection']
-
-        try:
-            bound = sig.bind(*args, **kwargs)
-            bound.apply_defaults()
-            msg = None
-        except TypeError as e:
-            msg = f"{e}\n\n"
-            msg += f"Function signature: {sig}\n\n"
-            msg += f"Documents:\n\n {self.run.__doc__}\n\n"
-
-        if msg is not None:
-            raise TypeError(msg)
-
-        return bound
+        # warp the run method as _run using functools.wraps
+        self.bare_run = self.run
+        self.bare_run_simulated = self.run_simulated
+        self._decorate_run()
 
 
-    def _run(self, bound):
-        self._before_run(bound.args, bound.kwargs)
+    def _decorate_run(self):
+        self.run = self._run
+        self.run.__dict__["__qualname__"] = self.bare_run.__qualname__
+        self.run.__dict__["__doc__"] = self.bare_run.__doc__
+        self.run_simulated = self._run_simulated
+        self.run_simulated.__dict__["__qualname__"] = self.bare_run_simulated.__qualname__
+        self.run_simulated.__dict__["__doc__"] = self.bare_run_simulated.__doc__
 
+    def get_run_args_dict(self):
+        assert self.run_args is not None, "The experiment has not been run yet."
+        assert self.run_kwargs is not None, "The experiment has not been run yet."
+        return _rebuild_args_dict(self.bare_run, self.run_args, self.run_kwargs)
+
+
+    def _run(self, *args, **kwargs):
+        self._before_run(args, kwargs)
         try:
             if self.is_simulation:
-                self.run_simulated(*bound.args, **bound.kwargs)
+                self.bare_run_simulated(*args, **kwargs)
             else:
-                self.run(*bound.args, **bound.kwargs)
+                self.bare_run(*args, **kwargs)
         finally:
-            self._post_run(bound.args, bound.kwargs)
+            self._post_run(args, kwargs)
+
+    def _run_simulated(self, *args, **kwargs):
+        self._before_run(args, kwargs)
+        try:
+            self.bare_run_simulated(*args, **kwargs)
+        finally:
+            self._post_run(args, kwargs)
 
     def run_simulated(self, *args, **kwargs):
         """
@@ -164,6 +159,11 @@ class Experiment:
         """
         return None
 
+    @staticmethod
+    def _build_static_image(result):
+        from leeq.utils.ai.utils import matplotlib_plotly_to_pil
+        return matplotlib_plotly_to_pil(result)
+
     def _execute_single_plot_function(self, func: callable,
                                       build_static_image=False):
         """
@@ -175,21 +175,16 @@ class Experiment:
             build_static_image (bool): Whether to build the static image.
 
         """
-        result = None
-        try:
-            result = func(self)
-            if build_static_image:
-                from leeq.utils.ai.utils import matplotlib_plotly_to_pil
-                image = matplotlib_plotly_to_pil(result)
-                self._plot_function_images[func.__qualname__] = image
+        figure_obj = self._plot_function_result_objs.get(func.__qualname__, None)
 
-        except Exception as e:
-            self.log_warning(
-                f"Error when executing {func.__qualname__}: {e}"
-            )
-            self.log_warning(f"Ignore the error and continue.")
+        if figure_obj is None:
+            figure_obj = func(self)
 
-        self._plot_function_result_objs[func.__qualname__] = result
+        if build_static_image:
+            image = self._build_static_image(figure_obj)
+            self._plot_function_images[func.__qualname__] = image
+
+        self._plot_function_result_objs[func.__qualname__] = figure_obj
 
 
     def get_ai_inspection_results(self, inspection_method='full', ignore_cache=False):

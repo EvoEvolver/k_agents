@@ -275,7 +275,7 @@ class AIInstructionExperiment(AIStagedExperiment):
 
     @log_and_record(overwrite_func_name='AIInstructionExperimen.run')
     def run_simulated(self, *args, **kwargs):
-        return self.run(*args, **kwargs)
+        return self.bare_run(*args, **kwargs)
 
     @log_and_record
     def run(self, prompt: str, next_stage_guide=None, **kwargs):
@@ -322,7 +322,7 @@ class FullyAutomatedExperiment(AIStagedExperiment):
 
     @log_and_record(overwrite_func_name='FullyAutomatedExperiment.run')
     def run_simulated(self, *args, **kwargs):
-        return self.run(*args, **kwargs)
+        return self.bare_run(*args, **kwargs)
 
     @log_and_record
     def run(self, prompt: str, sub_experiment=False, **kwargs):
@@ -342,7 +342,7 @@ class FullyAutomatedExperiment(AIStagedExperiment):
         -------
         """
 
-        from k_agents.notebook_utils import display_chat
+
         spinner_id = show_spinner("AI is designing the experiment...")
         stages = get_stages_from_description(prompt)
         hide_spinner(spinner_id)
