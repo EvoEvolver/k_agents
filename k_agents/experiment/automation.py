@@ -11,12 +11,11 @@ from k_agents.codegen.codegen import CodegenModel, get_codegen_wm
 from k_agents.staging import find_the_stage_label_based_on_description
 from k_agents.staging.stage_transition import get_next_stage_label, \
     generate_new_stage_description
-from leeq.utils.ai.display_chat.notebooks import display_chat, code_to_html, dict_to_html
+from k_agents.notebook_utils import display_chat, code_to_html, dict_to_html
 from IPython.core.display import display, HTML
 from leeq.experiments import Experiment
 from k_agents.variable_table import VariableTable
 from k_agents.indexer.code_indexer import build_leeq_code_ltm
-from leeq.utils.ai.display_chat.notebooks import display_chat, code_to_html
 import numpy
 
 np = numpy
@@ -343,7 +342,7 @@ class FullyAutomatedExperiment(AIStagedExperiment):
         -------
         """
 
-        from leeq.utils.ai.display_chat.notebooks import display_chat
+        from k_agents.notebook_utils import display_chat
         spinner_id = show_spinner("AI is designing the experiment...")
         stages = get_stages_from_description(prompt)
         hide_spinner(spinner_id)

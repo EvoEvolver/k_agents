@@ -32,6 +32,8 @@ def visual_analyze_prompt(prompt: str):
         Returns:
             Any: The same function.
         """
+        func._browser_function = True
+        func._is_plot_function = True
         func._visual_prompt = prompt
         func._file_path = calling_path
         func.ai_inspect = partial(_fast_visual_inspection, func)
@@ -93,7 +95,6 @@ def visual_inspection(image: "Image", prompt: str, func_file_path, rescale=0.5, 
                                                            go.Figure), "The image must be a PIL image or a Matplotlib or Plotly figure."
         image = matplotlib_plotly_to_pil(image)
 
-    from mllm import Chat
     chat = prepare_visual_inspection_chat(prompt, func_file_path)
     chat.system_message = ("You are a helpful visual assistant that able to provide analysis on images or plots. "
                        "Please return your message in a json format with keys analysis(str, single paragraph) "
