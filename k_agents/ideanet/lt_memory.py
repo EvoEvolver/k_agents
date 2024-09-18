@@ -9,7 +9,6 @@ import numpy as np
 
 from mllm import get_embeddings
 from mllm.utils.maps import p_map
-from mllm.utils.retry import standard_multi_attempts
 
 from .recall_logger import RecallLogger, to_log_item
 from .w_memory import WMemoryItem, WMemorySuppressingItem, WorkingMemory

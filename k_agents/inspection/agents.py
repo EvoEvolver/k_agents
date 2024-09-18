@@ -10,8 +10,8 @@ if TYPE_CHECKING:
 
 class InspectionAgent:
 
-    def __init__(self):
-        pass
+    def __init__(self, label):
+        self.label = label
 
     def run(self, Experiment):
         pass
@@ -19,7 +19,7 @@ class InspectionAgent:
 class TextInspectionAgent(InspectionAgent):
 
     def __init__(self, func):
-        super().__init__()
+        super().__init__(func.__qualname__)
         self.func = func
 
     def run(self, exp: Experiment):
@@ -35,7 +35,7 @@ class TextInspectionAgent(InspectionAgent):
 class VisualInspectionAgent(InspectionAgent):
 
     def __init__(self, plot_func, prompt, calling_path):
-        super().__init__()
+        super().__init__(plot_func.__qualname__)
         self.plot_func = plot_func
         self.prompt = prompt
         self.calling_path = calling_path
@@ -52,7 +52,13 @@ class VisualInspectionAgent(InspectionAgent):
             display_chat(agent_name=f"Inspection Agent",
                          content='<br>' + html,
                          background_color=color)
+
+        self.save_figure_to_exp(exp, figure_obj, image)
         return inspect_answer
+
+    def save_figure_to_exp(self, exp: Experiment, figure_obj, image):
+        exp._plot_function_result_objs[self.label] = figure_obj
+        exp._plot_function_images[self.label] = image
 
 
 
