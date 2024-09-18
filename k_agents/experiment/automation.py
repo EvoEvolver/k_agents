@@ -61,7 +61,7 @@ def execute_experiment_from_prompt(prompt: str, **kwargs):
 
     hide_spinner(spinner_id)
     code_html = code_to_html(codes)
-    display_chat("Code generation AI", 'light_purple', f"Here is the generated code:<br>{code_html}")
+    display_chat("Execution agent (generating code)", 'light_purple', f"Here is the generated code:<br>{code_html}")
     new_var_table.interpret(codes)
     return new_var_table
 
@@ -166,7 +166,7 @@ class AIStagedExperiment(Experiment):
 
             hide_spinner(spinner_id)
             code_html = code_to_html(codes)
-            display_chat("Code generation AI", 'light_purple', f"Here is the generated code:<br>{code_html}")
+            display_chat("Execution agent (generating code)", 'light_purple', f"Here is the generated code:<br>{code_html}")
             new_var_table.interpret(codes)
             return new_var_table
 
@@ -193,7 +193,7 @@ class AIStagedExperiment(Experiment):
             experiment_analysis_html = dict_to_html(experiment_result)
 
             color = 'light_green' if experiment_result['Experiment success'] else 'light_red'
-            display_chat("Inspection AI",
+            display_chat("Execution agent (summarizing inspection results)",
                          color, f"Experiment analysis results are as follows:<br>{experiment_analysis_html}")
 
             spinner_id = show_spinner(f"Considering the next stage...")

@@ -1,47 +1,11 @@
-import inspect
-import os
 import re
-from functools import partial
-
 from mllm import Chat
-from plotly import graph_objects as go
-
-
-def visual_analyze_prompt(prompt: str):
-    """
-    Decorator function for the functions that used to visualize data of the class.
-    It is used to register the prompt to analyze the data.
-
-    Parameters:
-        prompt (str): The prompt to be registered.
-
-    Returns:
-        Any: The return value of the function.
-    """
-    calling_path = inspect.stack()[1].filename
-
-    def inner_func(func):
-        """
-        Decorator function for the functions that used to visualize data of the class.
-        It is used to register the prompt to analyze the data.
-        The function must be a method of a LoggableObject.
-
-        Parameters:
-            func (function): The function to be registered.
-
-        Returns:
-            Any: The same function.
-        """
-        func._browser_function = True
-        func._is_plot_function = True
-        func._visual_prompt = prompt
-        func._file_path = calling_path
-        func.ai_inspect = partial(_fast_visual_inspection, func)
-
-        return func
-
-    return inner_func
-
+from typing import Union
+import matplotlib.pyplot as plt
+from PIL import Image
+import io
+import plotly.graph_objects as go
+import os
 
 def get_visual_analyze_prompt(func):
     """
@@ -55,25 +19,7 @@ def get_visual_analyze_prompt(func):
     """
     return getattr(func, '_visual_prompt', None)
 
-
-def has_visual_analyze_prompt(func):
-    """
-    Check if the function has a prompt to analyze the data.
-
-    Parameters:
-        func (function): The function to check.
-
-    Returns:
-        bool: True if the function has a prompt to analyze the data.
-    """
-    return hasattr(func, '_visual_prompt')
-
-
-import matplotlib.pyplot as plt
-from PIL import Image
-
-
-def visual_inspection(image: "Image", prompt: str, func_file_path, rescale=0.5, **kwargs) -> dict:
+def run_visual_inspection(image: "Image", prompt: str, func_file_path, rescale=0.5, **kwargs) -> dict:
     """
     Ask a question about the data shape. For example, the number of peaks, or whether the data is nearly periodic.
     The answer is either True or False.
@@ -88,7 +34,6 @@ def visual_inspection(image: "Image", prompt: str, func_file_path, rescale=0.5, 
     Returns:
         dict: The result of the analysis.
     """
-    from leeq.utils.ai.utils import matplotlib_plotly_to_pil
 
     if not isinstance(image, Image.Image):
         assert isinstance(image, plt.Figure) or isinstance(image,
@@ -135,40 +80,33 @@ def prepare_visual_inspection_chat(raw_prompt, func_file_path):
     return chat
 
 
-def _fast_visual_inspection(func, image=None, prompt=None, func_kwargs=None, llm_kwargs=None):
+def matplotlib_plotly_to_pil(fig: Union[go.Figure, plt.Figure]):
     """
-    Fast version of visual inspection. It will not ask the user for the prompt.
+    Convert a Matplotlib or Plotly figure to a PIL image.
 
     Parameters:
-        func (function): The function to analyze.
-        prompt (str): Optional. The prompt to ask.
-        image (Image): Optional. The image to analyze.
-        func_kwargs (dict): Optional. The keyword arguments to pass to the function.
-        llm_kwargs (dict): Optional. The keyword arguments to pass to the function.
+        fig (Union[go.Figure, plt.Figure]): The Matplotlib or Plotly figure.
 
     Returns:
-        dict: The result of the analysis.
+        Image: The PIL image.
     """
 
-    if func_kwargs is None:
-        func_kwargs = {}
-    if llm_kwargs is None:
-        llm_kwargs = {}
+    # Save the Matplotlib figure to a BytesIO object
 
-    if prompt is None:
-        prompt = get_visual_analyze_prompt(func)
-        if prompt is None:
-            raise ValueError(f"No default prompt for function {func.__qualname__}.")
-
-    if image is None:
-        if hasattr(func, '_image'):
-            image = func._image
+    buf = io.BytesIO()
+    if isinstance(fig, go.Figure):
+        if os.name == 'nt':
+            engine = "orca"
         else:
-            image = func(**func_kwargs)
-            func.__dict__['_image'] = image
+            engine = "kaleido"
+        fig.write_image(buf,format='png',engine=engine)
+    elif isinstance(fig, plt.Figure):
+        fig.savefig(buf, format='png')
+    else:
+        raise ValueError(f"The input must be a Matplotlib or Plotly figure. Got {type(fig)}.")
 
-    res = visual_inspection(image, prompt, func._file_path, **llm_kwargs)
+    buf.seek(0)
 
-    func.__dict__['_ai_inspect_result'] = res
-
-    return res
+    # Open the image with PIL
+    image = Image.open(buf)
+    return image

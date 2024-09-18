@@ -1,12 +1,12 @@
 from mllm import Chat
 
 
-def get_experiment_summary(description: str, run_parameters: str, results_list: dict[str, str]):
+def get_experiment_summary(description: str, run_parameters: str, results_list: list):
     """
     Summarize the experiment results.
     """
 
-    results_str = "".join([f"{key}: {value}" + '\n' for key, value in results_list.items()])
+    results_str = "".join([f"{i}: {result}" + '\n' for i, result in enumerate(results_list)])
     prompt = f"""
 Summarize the experiment results and report the key results. Indicate if the experiment was successful or failed.
 If failed, suggest possible updates to the parameters or the experiment design if the experiment fails. The suggestion
