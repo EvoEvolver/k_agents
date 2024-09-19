@@ -7,12 +7,14 @@ from k_agents.staging.stage_execution import check_if_needed_to_break_down, Stag
     get_exp_from_var_table
 from k_agents.staging.stage_generation import get_stages_from_description, stages_to_html
 from k_agents.notebook_utils import show_spinner, hide_spinner
-from k_agents.codegen.codegen import CodegenModel, get_codegen_wm
 from k_agents.staging import find_the_stage_label_based_on_description
 from k_agents.staging.stage_transition import get_next_stage_label, \
     generate_new_stage_description
 from k_agents.notebook_utils import display_chat, code_to_html, dict_to_html
 from IPython.core.display import display, HTML
+
+from k_agents.translation.agent import TranslationAgent, get_codegen_wm
+from k_agents.translation.env import TranslationAgentEnv
 from leeq.experiments import Experiment
 from k_agents.variable_table import VariableTable
 from k_agents.indexer.code_indexer import build_leeq_code_ltm
@@ -44,7 +46,7 @@ def execute_experiment_from_prompt(prompt: str, **kwargs):
         input_var_table.add_variable(key, value)
 
     leeq_code_ltm, exps_var_table = build_leeq_code_ltm()
-    code_cog_model = CodegenModel()
+    code_cog_model = TranslationAgent()
     for idea in leeq_code_ltm.ideas:
         code_cog_model.lt_memory.add_idea(idea)
     code_cog_model.n_recall_items = 5  # Number of items to recall in cognitive model
@@ -64,6 +66,8 @@ def execute_experiment_from_prompt(prompt: str, **kwargs):
     display_chat("Execution agent (generating code)", 'light_purple', f"Here is the generated code:<br>{code_html}")
     new_var_table.interpret(codes)
     return new_var_table
+
+
 
 
 class AIStagedExperiment(Experiment):
@@ -88,87 +92,20 @@ class AIStagedExperiment(Experiment):
         -------
         """
 
-
-        input_var_table = VariableTable()
-        for key, value in kwargs.items():
-            input_var_table.add_variable(key, value)
-        # input_var_table.add_variable("np", np)
-
         self.stages: List[Stage] = stages
 
-        leeq_code_ltm, exps_var_table = build_leeq_code_ltm()
-        code_cog_model = CodegenModel()
-        for idea in leeq_code_ltm.ideas:
-            code_cog_model.lt_memory.add_idea(idea)
-        code_cog_model.n_recall_items = 5  # Number of items to recall in cognitive model
-        var_table: VariableTable = VariableTable()
+        trans_env = TranslationAgentEnv()
+        translation_agent = trans_env.translation_agent
+        translation_var_table = trans_env.translation_var_table
+        assert translation_agent is not None, "Translation agent has not been initialized."
 
-        moduler_var_table = VariableTable()
-        moduler_var_table.add_variable("np", np)
-        moduler_var_table.add_variable("numpy", np)
-        var_table.add_parent_table(moduler_var_table)
+        translation_var_table, runtime_var_table = self.make_var_table(translation_var_table, kwargs)
 
-        var_table.add_parent_table(exps_var_table)
-        var_table.add_parent_table(input_var_table)
         self.n_step_multiplier = 6  # Multiplier to control the number of execution steps
 
         coding_ltm_cache = {}
 
         self.experiment_history = []
-
-        def run_stage_description(stage: 'Stage'):
-            """
-            Run the stage description powered by language model.
-
-            Parameters
-            ----------
-            stage: Stage
-                The stage to run.
-            """
-            spinner_id = show_spinner(f"Executing {stage.label}: {stage.title}...")
-
-            prompt = f"""
-            Overview of the funcationality: {stage.overview}
-            Current stage: {stage.label}
-            """
-
-            html = stages_to_html([stage])
-            display(HTML(html))
-
-            if sub_experiment:
-                single_step = True
-            else:
-                breakdown_requirement = check_if_needed_to_break_down(stage.description)
-                single_step = breakdown_requirement['single_step'] or len(breakdown_requirement['steps']) == 1
-
-            if not single_step:
-                hide_spinner(spinner_id)
-                display_chat("Stage Planning AI", 'light_blue',
-                             f"Stage {stage.label} is too complex to be processed in one step. Planning to break down the stage into smaller steps. {breakdown_requirement['reason']}.")
-                exp = FullyAutomatedExperiment(stage.description, sub_experiment=True, **input_var_table.variable_objs)
-                new_var_table = var_table.new_child_table()
-                new_var_table.add_variable("exp", exp)
-
-                return new_var_table
-
-            codegen_wm = get_codegen_wm(stage.description, input_var_table)
-
-            if stage.title not in coding_ltm_cache:
-                recall_res = code_cog_model.recall(codegen_wm)
-                coding_ltm_cache[stage.title] = recall_res
-            else:
-                recall_res = coding_ltm_cache[stage.title]
-
-            # with display_chats():
-            codes = code_cog_model.codegen(codegen_wm, recall_res)
-
-            new_var_table = var_table.new_child_table()
-
-            hide_spinner(spinner_id)
-            code_html = code_to_html(codes)
-            display_chat("Execution agent (generating code)", 'light_purple', f"Here is the generated code:<br>{code_html}")
-            new_var_table.interpret(codes)
-            return new_var_table
 
         curr_stage = self.stages[0]
         for step in range(len(self.stages) * self.n_step_multiplier):
@@ -176,7 +113,8 @@ class AIStagedExperiment(Experiment):
 
             while numbers_of_retry < 3:
                 try:
-                    new_var_table = run_stage_description(curr_stage)
+                    new_var_table = run_stage_description(curr_stage, translation_agent, runtime_var_table, translation_var_table, coding_ltm_cache,
+                                                          sub_experiment)
                     exp_object = get_exp_from_var_table(new_var_table)
                     if exp_object is None:
                         warnings.warn(f"Experiment object not found in the variable table.")
@@ -238,6 +176,17 @@ class AIStagedExperiment(Experiment):
             "analysis": self.experiment_history[-1].get_ai_inspection_results()
         }
 
+    def make_var_table(self, translation_var_table, kwargs):
+
+        exp_inputs_table = VariableTable.from_dict(kwargs)
+
+        var_table = VariableTable()
+        var_table.add_parent_table(translation_var_table)
+        var_table.add_parent_table(exp_inputs_table)
+
+        return exp_inputs_table, var_table
+
+
     def get_experiment_history(self) -> List[Experiment]:
         """
         Get the history of experiments run in the staged experiment.
@@ -267,6 +216,87 @@ class AIStagedExperiment(Experiment):
         #    'Experiment success': self.final_result["success"],
         # }
 
+def init_translation_agent():
+    """
+    Initialize the translation agent for the experiments
+    """
+    leeq_code_ltm, exps_var_table = build_leeq_code_ltm()
+    translation_agent = TranslationAgent()
+
+    for idea in leeq_code_ltm.ideas:
+        translation_agent.lt_memory.add_idea(idea)
+    translation_agent.n_recall_items = 5
+
+    moduler_var_table = VariableTable()
+    moduler_var_table.add_variable("np", np)
+    moduler_var_table.add_variable("numpy", np)
+
+    translation_var_table = VariableTable()
+    translation_var_table.add_parent_table(exps_var_table)
+    translation_var_table.add_parent_table(moduler_var_table)
+
+    env = TranslationAgentEnv()
+    env.translation_agent = translation_agent
+    env.translation_var_table = translation_var_table
+
+
+
+def run_stage_description(stage: 'Stage', translation_agent, var_table, exp_inputs_table: VariableTable, coding_ltm_cache, sub_experiment):
+    """
+    Run the stage description powered by language model.
+
+    Parameters
+    ----------
+    stage: Stage
+        The stage to run.
+    """
+    spinner_id = show_spinner(f"Executing {stage.label}: {stage.title}...")
+
+    prompt = f"""
+    Overview of the funcationality: {stage.overview}
+    Current stage: {stage.label}
+    """
+
+    html = stages_to_html([stage])
+    display(HTML(html))
+
+    if sub_experiment:
+        single_step = True
+    else:
+        breakdown_requirement = check_if_needed_to_break_down(stage.description)
+        single_step = breakdown_requirement['single_step'] or len(
+            breakdown_requirement['steps']) == 1
+
+    if not single_step:
+        hide_spinner(spinner_id)
+        display_chat("Stage Planning AI", 'light_blue',
+                     f"Stage {stage.label} is too complex to be processed in one step. Planning to break down the stage into smaller steps. {breakdown_requirement['reason']}.")
+        exp = FullyAutomatedExperiment(stage.description, sub_experiment=True,
+                                       **exp_inputs_table.variable_objs)
+        new_var_table = var_table.new_child_table()
+        new_var_table.add_variable("exp", exp)
+
+        return new_var_table
+
+    codegen_wm = get_codegen_wm(stage.description, exp_inputs_table)
+
+    if stage.title not in coding_ltm_cache:
+        recall_res = translation_agent.recall(codegen_wm)
+        coding_ltm_cache[stage.title] = recall_res
+    else:
+        recall_res = coding_ltm_cache[stage.title]
+
+    # with display_chats():
+    codes = translation_agent.codegen(codegen_wm, recall_res)
+
+    new_var_table = var_table.new_child_table()
+
+    hide_spinner(spinner_id)
+    code_html = code_to_html(codes)
+    display_chat("Execution agent (generating code)", 'light_purple',
+                 f"Here is the generated code:<br>{code_html}")
+    new_var_table.interpret(codes)
+    return new_var_table
 
 class AIInstructionExperiment(AIStagedExperiment):
     """
@@ -362,10 +392,10 @@ if __name__ == '__main__':
     prompt = "Do qubit measurement calibration to update the GMM model."
     wm = get_codegen_wm(prompt, VariableTable())
     leeq_code_ltm, exps_var_table = build_leeq_code_ltm()
-    code_cog_model = CodegenModel()
-    code_cog_model.n_recall_items = 5
+    translation_agent = TranslationAgent()
+    translation_agent.n_recall_items = 5
     for idea in leeq_code_ltm.ideas:
-        code_cog_model.lt_memory.add_idea(idea)
+        translation_agent.lt_memory.add_idea(idea)
 
     with RecallLogger():
-        code = code_cog_model.codegen(wm)
+        code = translation_agent.codegen(wm)

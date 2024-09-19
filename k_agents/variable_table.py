@@ -217,6 +217,20 @@ class VariableTable:
         """
         self._parent_tables.append(parent_table)
 
+    @classmethod
+    def from_dict(cls, var_dict: dict) -> VariableTable:
+        """Create a new VariableTable instance from a dictionary of variable names to objects.
+
+        Args:
+            var_dict (dict): A dictionary mapping variable names to objects.
+
+        Returns:
+            VariableTable: A new VariableTable instance with the specified variables.
+        """
+        table = VariableTable()
+        for name, obj in var_dict.items():
+            table.add_variable(name, obj)
+        return table
 
 def get_repr_in_prompt(value):
     long_limit = 3

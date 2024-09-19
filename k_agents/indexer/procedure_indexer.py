@@ -8,7 +8,7 @@ from mllm.utils.maps import p_map
 
 from k_agents.ideanet.lt_memory import IdeaResult, EmbedIdea
 from k_agents.ideanet.w_memory import WorkingMemory
-from k_agents.codegen.codegen import get_codegen_wm
+from k_agents.translation.agent import get_codegen_wm
 from k_agents.variable_table import VariableTable
 
 

@@ -2,12 +2,12 @@ from mllm import Chat
 from mllm.utils.parser import Parse
 
 from k_agents.indexer.code_indexer import LeeQExpCodeIdea
-from k_agents.codegen.codegen import CodegenModel
+from k_agents.translation.agent import TranslationAgent
 from k_agents.ideanet.lt_memory import RecallResult
 from k_agents.ideanet.w_memory import WorkingMemory
 
 
-class CodegenModelRAG(CodegenModel):
+class TranslationAgentRAG(TranslationAgent):
 
     def recall(self, wm: WorkingMemory) -> RecallResult:
         ideas_from_score = self.lt_memory.get_ideas_by_score(wm, self.n_recall_items,

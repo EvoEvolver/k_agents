@@ -71,7 +71,7 @@ Then, wrapped by ```python and ```, output the new code that can fill the slot i
         return idea_res
 
 
-class CodegenModel:
+class TranslationAgent:
 
     def __init__(self):
         self.lt_memory = LongTermMemory()
