@@ -1,5 +1,6 @@
 from typing import Optional
 
+from k_agents.experiment.experiment import Experiment
 from k_agents.variable_table import VariableTable
 
 
@@ -49,9 +50,8 @@ class Stage:
         display(Markdown(stage_markdown))
 
 
-def get_exp_from_var_table(var_table: VariableTable) -> Optional['Experiment']:
+def get_exp_from_var_table(var_table: VariableTable) -> Optional[Experiment]:
     """Searches the variable table for an Experiment object."""
-    from leeq import Experiment
     for name, obj in var_table.variable_objs.items():
         if isinstance(obj, Experiment):
             return obj

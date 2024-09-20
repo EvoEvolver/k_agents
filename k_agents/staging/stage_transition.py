@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import List, TYPE_CHECKING
 
 import mllm
-from leeq.experiments import Experiment
 
 if TYPE_CHECKING:
     from .stage_execution import Stage

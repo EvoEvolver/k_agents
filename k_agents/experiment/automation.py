@@ -15,7 +15,6 @@ from k_agents.translation.agent import TranslationAgent, get_codegen_wm
 from k_agents.translation.env import TranslationAgentEnv
 from k_agents.experiment.experiment import Experiment
 from k_agents.variable_table import VariableTable
-from leeq.utils.ai.translation_agent import init_leeq_translation_agent
 import numpy
 
 np = numpy

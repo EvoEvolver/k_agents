@@ -49,15 +49,15 @@ You should output 4 sentences.
     return values
 
 
-def add_leeq_exp_to_ltm(lt_memory: LongTermMemory, var_table: VariableTable,
-                        exp_cls: Type[Any]) -> None:
+def add_exp_to_ltm(lt_memory: LongTermMemory, var_table: VariableTable,
+                   exp_cls: Type[Any]) -> None:
     """
-    Add an experiment class to the long term memory and variable table for leeq.
+    Add an experiment class to the long term memory and variable table for the experiment class.
 
     Args:
-        lt_memory (LongTermMemory): The long term memory for leeq.
-        var_table (VariableTable): The variable table for leeq.
-        exp_cls (Type[Any]): The experiment class to be added.
+        lt_memory (LongTermMemory): The long term memory .
+        var_table (VariableTable): The variable table.
+        exp_cls (Type[Any]): The experiment class to be added to lt_memory and var_table.
     """
     idea = ExperimentCodegenIdea(exp_cls)
     lt_memory.add_idea(idea)

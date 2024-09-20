@@ -173,21 +173,3 @@ def extract_procedures_to_lt_memory(markdown_paths: list[str], lt_memory):
         all_procedures.extend(procedures)
     for procedure, idea in p_map(generate_idea_from_procedure, all_procedures):
         lt_memory.add_idea(idea)
-
-
-if __name__ == '__main__':
-    from leeq import experiments as exp
-
-    # set_default_to_anthropic()
-    lt_memory = LongTermMemory()
-    root = os.path.dirname(exp.__file__)
-    extract_procedures_to_lt_memory([root + "/procedures/calibration.md"], lt_memory)
-    var_table = VariableTable()
-    var_table.add_variable("dut", "DUT", "The device under test")
-    # inst = "Do a complete Calibrating Single Qubit `dut`, in which set step=0.001 for the gate Amplitude Calibration. "
-    inst = "Conduct a gate amplitude calibration on `dut_1`"
-    from k_agents.translation.agent import get_codegen_wm
-
-    wm = get_codegen_wm(inst, var_table=var_table)
-    print(wm.get_in_prompt_format())
-    lt_memory.recall_by_wm(wm)

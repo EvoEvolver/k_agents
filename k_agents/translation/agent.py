@@ -12,7 +12,7 @@ from k_agents.experiment.experiment import Experiment
 from k_agents.ideanet.code_wmemory import CodeWMemoryItem
 from k_agents.ideanet.lt_memory import Idea, IdeaResult, LongTermMemory, RecallResult
 from k_agents.ideanet.w_memory import WorkingMemory, WMemoryItem
-from k_agents.translation.code_indexer import add_leeq_exp_to_ltm
+from k_agents.translation.code_indexer import add_exp_to_ltm
 from k_agents.translation.env import TranslationAgentEnv
 from k_agents.translation.procedure_indexer import extract_procedures_to_lt_memory
 from k_agents.variable_table import VariableTable
@@ -234,10 +234,10 @@ def build_code_ltm(module, document_paths: List[str] = None):
     from k_agents.experiment.automation import AutoRun
     var_table.add_variable('AutoRun', AutoRun, None)
 
-    def _add_leeq_exp_to_ltm(exp_cls: Type[Any]):
-        add_leeq_exp_to_ltm(lt_memory, var_table, exp_cls)
+    def _add_exp_to_ltm(exp_cls: Type[Any]):
+        add_exp_to_ltm(lt_memory, var_table, exp_cls)
 
-    p_map(_add_leeq_exp_to_ltm, [cls for cls in classes],
+    p_map(_add_exp_to_ltm, [cls for cls in classes],
           title="Adding experiment to memory")
 
     document_paths = document_paths or []
