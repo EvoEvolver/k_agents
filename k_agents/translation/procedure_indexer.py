@@ -6,73 +6,17 @@ from markdownify import markdownify
 from mllm import Chat
 from mllm.utils.maps import p_map
 
-from k_agents.ideanet.lt_memory import IdeaResult, EmbedIdea
+from k_agents.ideanet.lt_memory import LongTermMemory, EmbedIdea, IdeaResult
 from k_agents.ideanet.w_memory import WorkingMemory
-from k_agents.translation.agent import get_codegen_wm
 from k_agents.variable_table import VariableTable
 
 
-def extract_procedure_contents(markdown_path):
-    with open(markdown_path, "r") as f:
-        src = f.read()
-    # Get html of the markdown
-    html = markdown.markdown(src)
-    # Parse the html
-    soup = BeautifulSoup(html, "html.parser")
-    title_html_list = []
-    # Find the contents between <h1>
-    for h1 in soup.find_all("h1"):
-        siblings = []
-        title = h1.text
-        # Get the following siblings of h1
-        for sibling in h1.next_siblings:
-            # If the sibling is a tag, break the loop
-            if sibling.name == "h1":
-                break
-            siblings.append(sibling)
-        sibling_html = "".join([str(sibling) for sibling in siblings])
-        title_html_list.append((title, sibling_html))
-        # Convert the html to markdown with sections start with #
-        #sibling_md = markdownify(sibling_html, heading_style="ATX")
-        #procedures.append((title, sibling_md))
-    procedure_list = []
-    for title, sibling_html in title_html_list:
-        # extract header with title Steps
-        steps = ""
-        background = ""
-        for h2 in BeautifulSoup(sibling_html, "html.parser").find_all("h2"):
-            if h2.text == "Steps":
-                siblings = []
-                # get all siblings until next h2
-                for sibling in h2.next_siblings:
-                    if sibling.name == "h2":
-                        break
-                    siblings.append(sibling)
-                steps = "".join([str(sibling) for sibling in siblings])
-                steps = markdownify(steps, heading_style="ATX").strip()
-            elif h2.text == "Background":
-                siblings = []
-                for sibling in h2.next_siblings:
-                    if sibling.name == "h2":
-                        break
-                    siblings.append(sibling)
-                background = "".join([str(sibling) for sibling in siblings])
-                background = markdownify(background, heading_style="ATX").strip()
-        procedure_list.append({
-            "title": title,
-            "background": background,
-            "steps": steps,
-        })
-    return procedure_list
-
-
-
-class LeeQExpDocIdea(EmbedIdea):
+class ProcedureCodegenIdea(EmbedIdea):
     def __init__(self, title: str, steps: str, background: str, embed_src: list[str]):
         self.title = title
         self.steps = steps
         self.background = background
-        super().__init__(f"LeeQExpDocIdea for {title}", embed_src)
+        super().__init__(f"ProcedureCodegenIdea for {title}", embed_src)
 
     def run_idea(self, w_memory: WorkingMemory) -> IdeaResult:
         instruction = w_memory.extract_tag_contents("instruction")[0]
@@ -116,10 +60,6 @@ You are required to output a JSON dict with the following keys
         res = chat.complete(parse="dict", expensive=True)
         if not res["proper"] or res["broader"] or res["certain_step"]:
             return IdeaResult(self, False)
-        #pprint(res)
-        #print(res["decomposed_steps"])
-        #print("Analysis")
-        #print(res["analysis"])
         arg_in_code = []
         for arg in var_table.variable_objs:
             arg_in_code.append(f", {arg}={arg}")
@@ -130,10 +70,64 @@ You are required to output a JSON dict with the following keys
 # AutoRun function will execute instructions passed to it
 experiment_instance = AutoRun(prompt="""{res["decomposed_steps"]}""" {arg_in_code})        
 '''
-        #print(code_suggestion)
         idea_res = IdeaResult(self, True)
         idea_res.add_new_wm_content(code_suggestion, tag="code_suggestion")
         return idea_res
+
+
+def extract_procedure_contents(markdown_path):
+    with open(markdown_path, "r") as f:
+        src = f.read()
+    # Get html of the markdown
+    html = markdown.markdown(src)
+    # Parse the html
+    soup = BeautifulSoup(html, "html.parser")
+    title_html_list = []
+    # Find the contents between <h1>
+    for h1 in soup.find_all("h1"):
+        siblings = []
+        title = h1.text
+        # Get the following siblings of h1
+        for sibling in h1.next_siblings:
+            # If the sibling is a tag, break the loop
+            if sibling.name == "h1":
+                break
+            siblings.append(sibling)
+        sibling_html = "".join([str(sibling) for sibling in siblings])
+        title_html_list.append((title, sibling_html))
+        # Convert the html to markdown with sections start with #
+        # sibling_md = markdownify(sibling_html, heading_style="ATX")
+        # procedures.append((title, sibling_md))
+    procedure_list = []
+    for title, sibling_html in title_html_list:
+        # extract header with title Steps
+        steps = ""
+        background = ""
+        for h2 in BeautifulSoup(sibling_html, "html.parser").find_all("h2"):
+            if h2.text == "Steps":
+                siblings = []
+                # get all siblings until next h2
+                for sibling in h2.next_siblings:
+                    if sibling.name == "h2":
+                        break
+                    siblings.append(sibling)
+                steps = "".join([str(sibling) for sibling in siblings])
+                steps = markdownify(steps, heading_style="ATX").strip()
+            elif h2.text == "Background":
+                siblings = []
+                for sibling in h2.next_siblings:
+                    if sibling.name == "h2":
+                        break
+                    siblings.append(sibling)
+                background = "".join([str(sibling) for sibling in siblings])
+                background = markdownify(background, heading_style="ATX").strip()
+        procedure_list.append({
+            "title": title,
+            "background": background,
+            "steps": steps,
+        })
+    return procedure_list
+
 
 def imagine_applications_for_doc(title, background):
     prompt = f"""
@@ -162,32 +156,38 @@ You should output 4 sentences.
     values = list(res.values())
     return values
 
+
 def generate_idea_from_procedure(procedure):
     title = procedure["title"]
     background = procedure["background"]
     steps = procedure["steps"]
     embed_src = imagine_applications_for_doc(title, background)
-    idea = LeeQExpDocIdea(title, steps, background, embed_src + [title])
+    idea = ProcedureCodegenIdea(title, steps, background, embed_src + [title])
     return idea
 
-def extract_procedures_to_lt_memory(markdown_path, lt_memory):
-    procedures = extract_procedure_contents(markdown_path)
-    for procedure, idea in p_map(generate_idea_from_procedure, procedures):
+
+def extract_procedures_to_lt_memory(markdown_paths: list[str], lt_memory):
+    all_procedures = []
+    for markdown_path in markdown_paths:
+        procedures = extract_procedure_contents(markdown_path)
+        all_procedures.extend(procedures)
+    for procedure, idea in p_map(generate_idea_from_procedure, all_procedures):
         lt_memory.add_idea(idea)
 
 
 if __name__ == '__main__':
     from leeq import experiments as exp
-    from k_agents.ideanet.lt_memory import LongTermMemory
 
-    #set_default_to_anthropic()
+    # set_default_to_anthropic()
     lt_memory = LongTermMemory()
     root = os.path.dirname(exp.__file__)
-    extract_procedures_to_lt_memory(root + "/procedures/calibration.md", lt_memory)
+    extract_procedures_to_lt_memory([root + "/procedures/calibration.md"], lt_memory)
     var_table = VariableTable()
     var_table.add_variable("dut", "DUT", "The device under test")
-    #inst = "Do a complete Calibrating Single Qubit `dut`, in which set step=0.001 for the gate Amplitude Calibration. "
+    # inst = "Do a complete Calibrating Single Qubit `dut`, in which set step=0.001 for the gate Amplitude Calibration. "
     inst = "Conduct a gate amplitude calibration on `dut_1`"
+    from k_agents.translation.agent import get_codegen_wm
+
     wm = get_codegen_wm(inst, var_table=var_table)
     print(wm.get_in_prompt_format())
     lt_memory.recall_by_wm(wm)

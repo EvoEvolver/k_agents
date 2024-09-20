@@ -1,10 +1,10 @@
 from mllm import Chat
 from mllm.utils.parser import Parse
 
-from k_agents.indexer.code_indexer import LeeQExpCodeIdea
-from k_agents.translation.agent import TranslationAgent
 from k_agents.ideanet.lt_memory import RecallResult
 from k_agents.ideanet.w_memory import WorkingMemory
+from k_agents.translation.agent import TranslationAgent
+from k_agents.translation.code_indexer import ExperimentCodegenIdea
 
 
 class TranslationAgentRAG(TranslationAgent):
@@ -14,7 +14,7 @@ class TranslationAgentRAG(TranslationAgent):
                                                              None)
         prompt = []
         for idea in ideas_from_score:
-            idea: LeeQExpCodeIdea
+            idea: ExperimentCodegenIdea
             desc = idea.get_exp_description()
             prompt.append(f"<experiment>{desc}</experiment>")
         prompt = "\n".join(prompt)
@@ -57,10 +57,11 @@ Then, wrapped by ```python and ```, output the new code that can fill the slot i
 </requirements>
 """
         chat = Chat(prompt)
-        code = chat.complete(parse="quotes", expensive=True)#["code"]
+        code = chat.complete(parse="quotes", expensive=True)  # ["code"]
         if code.startswith("```"):
             code = Parse.quotes(code)
         return code
+
 
 """
 Output a JSON dict with the following keys:

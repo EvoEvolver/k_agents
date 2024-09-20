@@ -1,6 +1,12 @@
-from k_agents.translation.agent import TranslationAgent
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from k_agents.utils import Singleton
-from k_agents.variable_table import VariableTable
+
+if TYPE_CHECKING:
+    from k_agents.translation.agent import TranslationAgent
+    from k_agents.variable_table import VariableTable
 
 
 class TranslationAgentEnv(Singleton):

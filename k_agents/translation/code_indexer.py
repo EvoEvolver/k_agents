@@ -1,15 +1,10 @@
 import inspect
-import os
-from typing import Any, Tuple, Type, List
+from typing import Any, Type, List
 
-from fibers.data_loader.module_to_tree import get_tree_for_module
-from fibers.tree.node_attr.code import get_type, get_obj
 from mllm import Chat
-from mllm.utils import parallel_map
 from mllm.utils.parser import Parse
 
-
-from k_agents.ideanet.lt_memory import IdeaResult, LongTermMemory, EmbedIdea
+from k_agents.ideanet.lt_memory import LongTermMemory, EmbedIdea, IdeaResult
 from k_agents.ideanet.w_memory import WorkingMemory
 from k_agents.variable_table import VariableTable
 
@@ -54,7 +49,22 @@ You should output 4 sentences.
     return values
 
 
-class LeeQExpCodeIdea(EmbedIdea):
+def add_leeq_exp_to_ltm(lt_memory: LongTermMemory, var_table: VariableTable,
+                        exp_cls: Type[Any]) -> None:
+    """
+    Add an experiment class to the long term memory and variable table for leeq.
+
+    Args:
+        lt_memory (LongTermMemory): The long term memory for leeq.
+        var_table (VariableTable): The variable table for leeq.
+        exp_cls (Type[Any]): The experiment class to be added.
+    """
+    idea = ExperimentCodegenIdea(exp_cls)
+    lt_memory.add_idea(idea)
+    var_table.add_variable(exp_cls.__name__, exp_cls, exp_cls.__name__)
+
+
+class ExperimentCodegenIdea(EmbedIdea):
     def __init__(self, exp_cls: Type[Any]):
         """
         Initialize an idea for triggering and embedding experiment-based sentences.
@@ -69,7 +79,8 @@ class LeeQExpCodeIdea(EmbedIdea):
             embedding_src = exp_cls.needing_situations
         else:
             # Generating sentences for the idea
-            embedding_src = imagine_applications(exp_cls.__name__, inspect.getdoc(exp_cls.run))
+            embedding_src = imagine_applications(exp_cls.__name__,
+                                                 inspect.getdoc(exp_cls.run))
         triggering_src = [exp_name] + embedding_src
         super().__init__(f"{exp_name} suggestion", triggering_src)
 
@@ -151,61 +162,3 @@ Experiment signature:
 {inspect.getdoc(self.exp_cls.run)} 
 <document>
 """
-
-
-def add_leeq_exp_to_ltm(lt_memory: LongTermMemory, var_table: VariableTable, exp_cls: Type[Any]) -> None:
-    """
-    Add an experiment class to the long term memory and variable table for leeq.
-
-    Args:
-        lt_memory (LongTermMemory): The long term memory for leeq.
-        var_table (VariableTable): The variable table for leeq.
-        exp_cls (Type[Any]): The experiment class to be added.
-    """
-    idea = LeeQExpCodeIdea(exp_cls)
-    lt_memory.add_idea(idea)
-    var_table.add_variable(exp_cls.__name__, exp_cls, exp_cls.__name__)
-
-
-def build_leeq_code_ltm(add_document_procedures=True) -> Tuple[LongTermMemory, VariableTable]:
-    """
-    Build the idea base for leeq. It scans built-in experiments and creates ideas for them.
-
-    Returns:
-        Tuple[LongTermMemory, VariableTable]: The long term memory for leeq and the loaded variable table.
-    """
-    from leeq.experiments import builtin
-
-    lt_memory = LongTermMemory()
-    var_table = VariableTable()
-
-    # Load the module root and scan for experiment classes
-    module_root = get_tree_for_module(builtin)
-    classes = []
-    from leeq import Experiment
-    for node in module_root.iter_subtree_with_dfs():
-        if get_type(node) == "class":
-            class_obj = get_obj(node)
-            if not issubclass(class_obj, Experiment):
-                continue
-            elif not class_obj.is_ai_compatible():
-                continue
-            classes.append(class_obj)
-
-    # Load the AI automated experiment class for nested execution.
-    from k_agents.experiment.automation import AutoRun
-
-    var_table.add_variable('AutoRun', AutoRun, None)
-
-    def _add_leeq_exp_to_ltm(exp_cls: Type[Any]):
-        add_leeq_exp_to_ltm(lt_memory, var_table, exp_cls)
-
-    for i, idea in parallel_map(_add_leeq_exp_to_ltm, [cls for cls in classes], title="Adding experiment to memory"):
-        ...
-
-    from leeq import experiments as exp
-    from k_agents.indexer.procedure_indexer import extract_procedures_to_lt_memory
-    root = os.path.dirname(exp.__file__)
-    if add_document_procedures:
-        extract_procedures_to_lt_memory(root + "/procedures/calibration.md", lt_memory)
-    return lt_memory, var_table

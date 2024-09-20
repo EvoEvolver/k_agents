@@ -15,55 +15,11 @@ from k_agents.translation.agent import TranslationAgent, get_codegen_wm
 from k_agents.translation.env import TranslationAgentEnv
 from k_agents.experiment.experiment import Experiment
 from k_agents.variable_table import VariableTable
-from k_agents.indexer.code_indexer import build_leeq_code_ltm
+from leeq.utils.ai.translation_agent import init_leeq_translation_agent
 import numpy
 
 np = numpy
 __all__ = ["OneInstExecutionAgent", "ExecutionAgent", "AutoRun"]
-def execute_experiment_from_prompt(prompt: str, **kwargs):
-    """
-    Execute an experiment from a prompt.
-
-    Parameters
-    ----------
-    prompt: str
-        The prompt to run the experiment.
-    kwargs
-        Additional keyword arguments.
-
-    Returns
-    -------
-    The variable table after the experiment is run.
-
-    """
-
-
-    spinner_id = show_spinner(f"Interpreting experiment...")
-    input_var_table = VariableTable()
-    for key, value in kwargs.items():
-        input_var_table.add_variable(key, value)
-
-    leeq_code_ltm, exps_var_table = build_leeq_code_ltm()
-    code_cog_model = TranslationAgent()
-    for idea in leeq_code_ltm.ideas:
-        code_cog_model.lt_memory.add_idea(idea)
-    code_cog_model.n_recall_items = 5  # Number of items to recall in cognitive model
-    var_table: VariableTable = VariableTable()
-    var_table.add_parent_table(exps_var_table)
-    var_table.add_parent_table(input_var_table)
-
-    codegen_wm = get_codegen_wm(prompt, input_var_table)
-
-    recall_res = code_cog_model.recall(codegen_wm)
-    codes = code_cog_model.codegen(codegen_wm, recall_res)
-
-    new_var_table = var_table.new_child_table()
-
-    hide_spinner(spinner_id)
-    code_html = code_to_html(codes)
-    display_chat("Execution agent (generating code)", 'light_purple', f"Here is the generated code:<br>{code_html}")
-    new_var_table.interpret(codes)
-    return new_var_table
 
 
 
@@ -224,30 +180,6 @@ class StageExecutionAgent:
         #    'Experiment success': self.final_result["success"],
         # }
 
-def init_translation_agent():
-    """
-    Initialize the translation agent for the experiments
-    """
-    leeq_code_ltm, exps_var_table = build_leeq_code_ltm()
-    translation_agent = TranslationAgent()
-
-    for idea in leeq_code_ltm.ideas:
-        translation_agent.lt_memory.add_idea(idea)
-    translation_agent.n_recall_items = 5
-
-    moduler_var_table = VariableTable()
-    moduler_var_table.add_variable("np", np)
-    moduler_var_table.add_variable("numpy", np)
-
-    translation_var_table = VariableTable()
-    translation_var_table.add_parent_table(exps_var_table)
-    translation_var_table.add_parent_table(moduler_var_table)
-
-    env = TranslationAgentEnv()
-    env.translation_agent = translation_agent
-    env.translation_var_table = translation_var_table
-
-
 
 def run_stage_description(stage: 'Stage', translation_agent, var_table, exp_inputs_table: VariableTable, coding_ltm_cache, sub_experiment):
     """
@@ -384,16 +316,45 @@ class ExecutionAgent(StageExecutionAgent):
 def AutoRun(instructions, **kwargs):
     ExecutionAgent().run(instructions, **kwargs)
 
-if __name__ == '__main__':
-    from k_agents.ideanet.recall_logger import RecallLogger
 
-    prompt = "Do qubit measurement calibration to update the GMM model."
-    wm = get_codegen_wm(prompt, VariableTable())
-    leeq_code_ltm, exps_var_table = build_leeq_code_ltm()
-    translation_agent = TranslationAgent()
-    translation_agent.n_recall_items = 5
-    for idea in leeq_code_ltm.ideas:
-        translation_agent.lt_memory.add_idea(idea)
+def execute_experiment_from_prompt(prompt: str, **kwargs):
+    """
+    Execute an experiment from a prompt.
 
-    with RecallLogger():
-        code = translation_agent.codegen(wm)
+    Parameters
+    ----------
+    prompt: str
+        The prompt to run the experiment.
+    kwargs
+        Additional keyword arguments.
+
+    Returns
+    -------
+    The variable table after the experiment is run.
+
+    """
+
+    spinner_id = show_spinner(f"Interpreting experiment...")
+
+    translation_agent_env = TranslationAgentEnv()
+    translation_agent = translation_agent_env.translation_agent
+    translation_var_table = translation_agent_env.translation_var_table
+
+    input_var_table = VariableTable.from_dict(kwargs)
+    var_table: VariableTable = VariableTable()
+    var_table.add_parent_table(translation_var_table)
+    var_table.add_parent_table(input_var_table)
+
+    codegen_wm = get_codegen_wm(prompt, input_var_table)
+
+    recall_res = translation_agent.recall(codegen_wm)
+    codes = translation_agent.codegen(codegen_wm, recall_res)
+
+    new_var_table = var_table.new_child_table()
+
+    hide_spinner(spinner_id)
+    code_html = code_to_html(codes)
+    display_chat("Execution agent (generating code)", 'light_purple',
+                 f"Here is the generated code:<br>{code_html}")
+    new_var_table.interpret(codes)
+    return new_var_table
