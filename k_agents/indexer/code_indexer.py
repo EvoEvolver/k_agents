@@ -194,10 +194,6 @@ def build_leeq_code_ltm(add_document_procedures=True) -> Tuple[LongTermMemory, V
 
     # Load the AI automated experiment class for nested execution.
     from k_agents.experiment.automation import AutoRun
-    # classes.append(FullyAutomatedExperiment)
-    # classes.append(AIInstructionExperiment)
-    # classes.append(AIRun)
-    # classes.append(AutoRun)
 
     var_table.add_variable('AutoRun', AutoRun, None)
 

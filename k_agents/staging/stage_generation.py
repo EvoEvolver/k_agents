@@ -158,7 +158,7 @@ def _get_stage_from_agent_response(stage_info: tuple) -> dict:
     return stage_content
 
 
-def get_stages_from_description(description: str) -> List[Stage]:
+def get_stages_from_instruction(description: str) -> List[Stage]:
     """
     Get stages from the description of the experiment.
 
@@ -359,5 +359,5 @@ After successfully calibrating the Rabi frequency, we proceed to Pingpong amplit
 '''
 
     description = description_rabi
-    stages = get_stages_from_description(description)
+    stages = get_stages_from_instruction(description)
     print(stages)

@@ -1,11 +1,9 @@
 import warnings
 from typing import Dict, Any, List
 
-from labchronicle import log_and_record
-
 from k_agents.staging.stage_execution import check_if_needed_to_break_down, Stage, \
     get_exp_from_var_table
-from k_agents.staging.stage_generation import get_stages_from_description, stages_to_html
+from k_agents.staging.stage_generation import get_stages_from_instruction, stages_to_html
 from k_agents.notebook_utils import show_spinner, hide_spinner
 from k_agents.staging import find_the_stage_label_based_on_description
 from k_agents.staging.stage_transition import get_next_stage_label, \
@@ -15,13 +13,13 @@ from IPython.core.display import display, HTML
 
 from k_agents.translation.agent import TranslationAgent, get_codegen_wm
 from k_agents.translation.env import TranslationAgentEnv
-from leeq.experiments import Experiment
+from k_agents.experiment.experiment import Experiment
 from k_agents.variable_table import VariableTable
 from k_agents.indexer.code_indexer import build_leeq_code_ltm
 import numpy
 
 np = numpy
-__all__ = ["AIInstructionExperiment", "FullyAutomatedExperiment", "AIRun", "AutoRun"]
+__all__ = ["OneInstExecutionAgent", "ExecutionAgent", "AutoRun"]
 def execute_experiment_from_prompt(prompt: str, **kwargs):
     """
     Execute an experiment from a prompt.
@@ -70,12 +68,25 @@ def execute_experiment_from_prompt(prompt: str, **kwargs):
 
 
 
-class AIStagedExperiment(Experiment):
+class StageExecutionAgent:
     """
     An experiment that contains multiple stages to be run.
     """
 
-    def run(self, stages: List['Stage'], sub_experiment=False, **kwargs):
+    def __init__(self):
+        super().__init__()
+        self.stages = None
+        self.experiment_history = []
+        self.final_result = None
+        self.max_step_per_stage = 6
+
+        trans_env = TranslationAgentEnv()
+        self.translation_agent = trans_env.translation_agent
+        self.translation_var_table = trans_env.translation_var_table
+        assert self.translation_agent is not None, "Translation agent has not been initialized."
+
+
+    def run(self, stages: List[Stage], sub_experiment=False, **kwargs):
         """
         Run the staged experiment powered by language model.
 
@@ -93,88 +104,85 @@ class AIStagedExperiment(Experiment):
         """
 
         self.stages: List[Stage] = stages
-
-        trans_env = TranslationAgentEnv()
-        translation_agent = trans_env.translation_agent
-        translation_var_table = trans_env.translation_var_table
-        assert translation_agent is not None, "Translation agent has not been initialized."
-
-        translation_var_table, runtime_var_table = self.make_var_table(translation_var_table, kwargs)
-
-        self.n_step_multiplier = 6  # Multiplier to control the number of execution steps
-
+        exp_inputs_table, runtime_var_table = self.make_var_table(self.translation_var_table, kwargs)
         coding_ltm_cache = {}
+        curr_stage = self.stages[0]
 
         self.experiment_history = []
 
-        curr_stage = self.stages[0]
-        for step in range(len(self.stages) * self.n_step_multiplier):
-            numbers_of_retry = 0
+        for step in range(len(self.stages) * self.max_step_per_stage):
 
-            while numbers_of_retry < 3:
-                try:
-                    new_var_table = run_stage_description(curr_stage, translation_agent, runtime_var_table, translation_var_table, coding_ltm_cache,
-                                                          sub_experiment)
-                    exp_object = get_exp_from_var_table(new_var_table)
-                    if exp_object is None:
-                        warnings.warn(f"Experiment object not found in the variable table.")
-                        continue
-                    self.experiment_history.append(exp_object)
-                    experiment_result = exp_object.get_ai_inspection_results()
-                    break
-                except Exception as e:
-                    raise e
-                    numbers_of_retry += 1
-                    if numbers_of_retry == 3:
-                        raise e
+            exp_object = run_stage_description(curr_stage, self.translation_agent, runtime_var_table, exp_inputs_table, coding_ltm_cache,
+                                                  sub_experiment)
+
+            if exp_object is None:
+                warnings.warn(f"Experiment object not found in the variable table.")
+                # re-run the stage
+                continue
+
+            self.experiment_history.append(exp_object)
+
+            experiment_result = exp_object.get_ai_inspection_results()
 
             experiment_analysis_html = dict_to_html(experiment_result)
-
             color = 'light_green' if experiment_result['Experiment success'] else 'light_red'
-            display_chat("Execution agent (summarizing inspection results)",
-                         color, f"Experiment analysis results are as follows:<br>{experiment_analysis_html}")
+            self.message_box(f"Experiment analysis results are as follows:<br>{experiment_analysis_html}", color=color)
 
             spinner_id = show_spinner(f"Considering the next stage...")
+
             next_stage_info = get_next_stage_label(curr_stage, experiment_result)
             next_stage_label = next_stage_info["next"]
             additional_info = next_stage_info["additional_info"]
-            if next_stage_label == "Complete":
 
-                display_chat("Stage Planning AI", 'light_green',
-                             f"Experiment complete.<br>"
-                             f"{next_stage_info['analysis']}")
+            if next_stage_label in ["Complete", "Fail"]:
                 hide_spinner(spinner_id)
                 break
-            elif next_stage_label == "Fail":
-                display_chat("Stage Planning AI", 'light_red',
-                             f"Experiment failed.<br>"
-                             f"{next_stage_info['analysis']}")
-                hide_spinner(spinner_id)
-                break
-            next_stage: Stage
-            for stage in self.stages:
-                if stage.label in next_stage_label:
-                    next_stage = stage
-                    break
-            else:
-                next_stage = find_the_stage_label_based_on_description(self.stages, next_stage_label)
-                if next_stage is None:
-                    assert False, f"Next stage label {next_stage_label} not found in stages"
+
+            next_stage = self.find_next_stage(next_stage_label)
 
             if curr_stage.label in next_stage.label:
                 new_description = generate_new_stage_description(next_stage, additional_info)
                 next_stage.description = new_description
 
             hide_spinner(spinner_id)
-            display_chat("Stage Planning AI", 'light_blue', f"Transitioning to the next"
-                                                            f" stage {next_stage.label} with the following description:<br>{next_stage.description}<br>"
-                                                            f"{next_stage_info['analysis']}")
+
+            self.message_box(f"Transitioning to the next stage {next_stage.label} "
+                             f"with the following description:<br>"
+                             f"{next_stage.description}<br>"
+                             f"{next_stage_info['analysis']}")
             curr_stage = next_stage
+        else:
+            next_stage_label = "Too many steps"
+
+
+        if next_stage_label == "Complete":
+            self.message_box("The experiment is complete.<br>" + f"{next_stage_info['analysis']}", color='light_green')
+        elif next_stage_label == "Fail":
+            self.message_box("The experiment has failed.<br>" + f"{next_stage_info['analysis']}", color='light_red')
+        elif next_stage_label == "Too many steps":
+            self.message_box("Too many steps have been taken. The experiment is not complete.", color='light_red')
 
         self.final_result = {
             "success": next_stage_label == "Complete",
             "analysis": self.experiment_history[-1].get_ai_inspection_results()
         }
+
+    def message_box(self, content, color='light_blue'):
+        display_chat("Execution Agent", color, content)
+
+
+    def find_next_stage(self, next_stage_label):
+        next_stage: Stage
+        for stage in self.stages:
+            if stage.label in next_stage_label:
+                next_stage = stage
+                break
+        else:
+            next_stage = find_the_stage_label_based_on_description(self.stages,
+                                                                   next_stage_label)
+            if next_stage is None:
+                assert False, f"Next stage label {next_stage_label} not found in stages"
+        return next_stage
 
     def make_var_table(self, translation_var_table, kwargs):
 
@@ -271,8 +279,8 @@ def run_stage_description(stage: 'Stage', translation_agent, var_table, exp_inpu
         hide_spinner(spinner_id)
         display_chat("Stage Planning AI", 'light_blue',
                      f"Stage {stage.label} is too complex to be processed in one step. Planning to break down the stage into smaller steps. {breakdown_requirement['reason']}.")
-        exp = FullyAutomatedExperiment(stage.description, sub_experiment=True,
-                                       **exp_inputs_table.variable_objs)
+        exp = ExecutionAgent(stage.description, sub_experiment=True,
+                             **exp_inputs_table.variable_objs)
         new_var_table = var_table.new_child_table()
         new_var_table.add_variable("exp", exp)
 
@@ -296,25 +304,23 @@ def run_stage_description(stage: 'Stage', translation_agent, var_table, exp_inpu
     display_chat("Execution agent (generating code)", 'light_purple',
                  f"Here is the generated code:<br>{code_html}")
     new_var_table.interpret(codes)
-    return new_var_table
 
-class AIInstructionExperiment(AIStagedExperiment):
+    exp_object = get_exp_from_var_table(new_var_table)
+
+    return exp_object
+
+class OneInstExecutionAgent(StageExecutionAgent):
     """
     An experiment that contains one instruction (step) to be run. The instructions are powered by language model.
     """
 
-    @log_and_record(overwrite_func_name='AIInstructionExperimen.run')
-    def run_simulated(self, *args, **kwargs):
-        return self.bare_run(*args, **kwargs)
-
-    @log_and_record
-    def run(self, prompt: str, next_stage_guide=None, **kwargs):
+    def run(self, instructions: str, next_stage_guide=None, **kwargs):
         """
         Run the experiment powered by language model.
 
         Parameters
         ----------
-        prompt: str
+        instructions: str
             The prompt to run the experiment. Contains the experiment design and instructions.
         kwargs
             Additional keyword arguments.
@@ -334,7 +340,7 @@ class AIInstructionExperiment(AIStagedExperiment):
 
         stage = Stage(label="Stage1", title="Implement experiment",
                       overview='You are requested to implement one experiment and modify the parameter to make it success.',
-                      description=prompt, next_stage_guide=next_stage_guide
+                      description=instructions, next_stage_guide=next_stage_guide
                       )
         stage_complete = Stage("Complete", "Complete", "The experiment is complete.", "End of experiment.",
                                next_stage_guide='None')
@@ -344,24 +350,19 @@ class AIInstructionExperiment(AIStagedExperiment):
         super().run(stages, **kwargs)
 
 
-class FullyAutomatedExperiment(AIStagedExperiment):
+class ExecutionAgent(StageExecutionAgent):
     """
     A fully automated experiment that contains multiple steps. Automatically runs the experiment based on the instructions
     provided.
     """
 
-    @log_and_record(overwrite_func_name='FullyAutomatedExperiment.run')
-    def run_simulated(self, *args, **kwargs):
-        return self.bare_run(*args, **kwargs)
-
-    @log_and_record
-    def run(self, prompt: str, sub_experiment=False, **kwargs):
+    def run(self, instructions: str, sub_experiment=False, **kwargs):
         """
         Run the automated experiment powered by language model.
 
         Parameters
         ----------
-        prompt: str
+        instructions: str
             The prompt to run the experiment. Contains the experiment design and instructions.
         sub_experiment: bool
             Whether the experiment is a sub-experiment. If it is we do not allow it to be further splitted.
@@ -374,17 +375,14 @@ class FullyAutomatedExperiment(AIStagedExperiment):
 
 
         spinner_id = show_spinner("AI is designing the experiment...")
-        stages = get_stages_from_description(prompt)
+        stages = get_stages_from_instruction(instructions)
         hide_spinner(spinner_id)
-
-        stages_html = stages_to_html(stages)
-        display_chat("Stage planning AI", 'light_blue', "The planned experiments are:<br>" + stages_html)
+        self.message_box("The planned experiments are:<br>" + stages_to_html(stages), color='light_blue')
 
         super().run(stages, sub_experiment=sub_experiment, **kwargs)
 
-
-AIRun = AIInstructionExperiment
-AutoRun = FullyAutomatedExperiment
+def AutoRun(instructions, **kwargs):
+    ExecutionAgent().run(instructions, **kwargs)
 
 if __name__ == '__main__':
     from k_agents.ideanet.recall_logger import RecallLogger
