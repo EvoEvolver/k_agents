@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "k_agents"
+description = "Automated experiments with knowledge agents"
+version = "1.0.0"
+requires-python = ">=3.10"
+
+authors = [
+    { name = "Zijian Zhang" },
+    { name = "Shuxiang Cao" }
+]
+dynamic = ["dependencies"]
+
+readme = "README.md"
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[project.optional-dependencies]
+dev = [
+    "pytest"
+]
+
+[tool.setuptools]
+packages = ["k_agents"]
