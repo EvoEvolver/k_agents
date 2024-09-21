@@ -11,6 +11,7 @@ from k_agents.notebook_utils import show_spinner, hide_spinner
 
 class Experiment:
     _experiment_result_analysis_instructions = None
+    decorate_run = True
 
     def __init__(self, *args, **kwargs):
         self._ai_inspection_results = {}
@@ -26,7 +27,8 @@ class Experiment:
         # warp the run method as _run using functools.wraps
         self.bare_run = self.run
         self.bare_run_simulated = self.run_simulated
-        self._decorate_run()
+        if self.decorate_run:
+            self._decorate_run()
 
     def _decorate_run(self):
         self.run = self._run
