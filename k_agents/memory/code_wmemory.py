@@ -1,6 +1,6 @@
 import re
 
-from k_agents.ideanet.w_memory import WMemoryItem
+from k_agents.memory.w_memory import WMemoryItem
 
 """
 # Working memory items for code

@@ -6,8 +6,8 @@ from markdownify import markdownify
 from mllm import Chat
 from mllm.utils.maps import p_map
 
-from k_agents.ideanet.lt_memory import LongTermMemory, EmbedIdea, IdeaResult
-from k_agents.ideanet.w_memory import WorkingMemory
+from k_agents.memory.lt_memory import LongTermMemory, EmbedIdea, IdeaResult
+from k_agents.memory.w_memory import WorkingMemory
 from k_agents.variable_table import VariableTable
 
 

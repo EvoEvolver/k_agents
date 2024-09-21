@@ -14,6 +14,7 @@ class Stage:
         self.description = description  # Description of what happens in this stage
         self.next_stage_guide = next_stage_guide  # Guidance for transitioning to the next stage
         self.var_table = None  # Variable table specific to this stage, initialized later
+        self.n_passes = 0  # Number of times the stage has been executed
 
     def to_dict(self) -> dict:
         """Converts the stage to a dictionary."""

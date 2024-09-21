@@ -82,36 +82,30 @@ def get_next_stage_label(current_stage: Stage, experiment_result: dict[str, str]
         result_prompt += f"Result from {key}: {value}\n\n"
 
     prompt = f"""
-You are operating a state machine and the current node has produced some results. You must analyze these results and use the specific rules to determine the next state of the machine.
+You are operating a state machine and the current stage has produced some results. You must analyze these results and use the rule of transition to determine the next stage of the machine.
 
-Current stage:
+<current_stage>
 {current_stage.label}:{current_stage.description}
+</current_stage>
 
-Here are the rules:
+<rule_of_transition>
 {rules}
+</rule_of_transition>
 
-Here are the results from the experiments. Note that results from fitting and the inspection must be consistant to indicate
-the validity. Otherwise they are both invalid.
+Here are the results from the experiments. Note that results must be consistent to indicate the validity. 
+Otherwise they are both invalid.
+<experiment_reports>
 {result_prompt}
+</experiment_reports>
 
-Based on the rules and the result provided, determine the next stage of the state machine. If the current stage has 
-been tried 3 times and still failed, the next stage should be "Fail". If you don't know how many times the current stage 
-has been tried, assume this is the first time. Do not retry the current stage if the experiment has been successful.
- 
-Return your decision in JSON format, including what the next state is and any additional information such as the results
+<requirements>
+Return your decision in JSON format With the following keys:
+"analysis" (string): an analysis of the results and the rule of transition to determine the next stage.
+"next" (string): the name of the next stage.
+"additional_info": any additional information such as the results
 from the current experiment that indicates the arguments of the next stage in natural language that will be necessary
-for operating in the next state. The next stage does not posses the information of the current stage.
-
-Do not pass any additional information if the next stage is different from the current stage. 
-
-   If the next stage is the same as the current stage, include the number of tries in the additional info.
-""" + """
-Example JSON Output:
-{
-    "analysis": "<Your analysis of the results and the rules>",
-    "next": "<Name of the next stage>",
-    "additional_info": "<Additional information to be passed to the next stage>"
-}
+for operating in the next state. (You must notice that the next stage does not posses the information of the current stage.)
+</requirements>
 """
 
     chat = mllm.Chat(prompt)

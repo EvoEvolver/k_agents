@@ -2,7 +2,7 @@ from typing import List
 
 from mllm.utils import parallel_map
 
-from k_agents.staging.stage_execution import Stage
+from k_agents.execution.stage_execution import Stage
 import json
 import mllm
 
@@ -212,13 +212,7 @@ The NEXT key must be a string detailing the transition conditions. Do not use "r
   "Stage2": {
     "Title": "Experiment2",
     "ExperimentDescription": "Conduct the <experiment name 2> with parameters <parameter list for experiment 2>.",
-    "Next": "Advance to Stage3 if standards are met, retry Stage2 with adjustments from results suggestions otherwise.After 3 failures, proceed to Fail."
-    "Reference":'<The original input prompt related to this stage>'
-  },
-  "Stage3": {
-    "Title": "Experiment3",
-    "ExperimentDescription": "Conduct the <experiment name 3> with parameters <parameter list for experiment 3>.",
-    "Next": "Move to Complete if successful, return to Stage3 if inconclusive. After 3 failures, proceed to Fail."
+    "Next": "Move to Complete if successful, return to Stage2 if inconclusive. After 3 failures, proceed to Fail."
     "Reference":'<The original input prompt related to this stage>'
   },
   "Complete": {

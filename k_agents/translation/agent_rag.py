@@ -1,8 +1,8 @@
 from mllm import Chat
 from mllm.utils.parser import Parse
 
-from k_agents.ideanet.lt_memory import RecallResult
-from k_agents.ideanet.w_memory import WorkingMemory
+from k_agents.memory.lt_memory import RecallResult
+from k_agents.memory.w_memory import WorkingMemory
 from k_agents.translation.agent import TranslationAgent
 from k_agents.translation.code_indexer import ExperimentCodegenIdea
 

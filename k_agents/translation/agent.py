@@ -9,9 +9,9 @@ from mllm.utils import p_map
 from mllm.utils.parser import Parse
 
 from k_agents.experiment.experiment import Experiment
-from k_agents.ideanet.code_wmemory import CodeWMemoryItem
-from k_agents.ideanet.lt_memory import Idea, IdeaResult, LongTermMemory, RecallResult
-from k_agents.ideanet.w_memory import WorkingMemory, WMemoryItem
+from k_agents.memory.code_wmemory import CodeWMemoryItem
+from k_agents.memory.lt_memory import Idea, IdeaResult, LongTermMemory, RecallResult
+from k_agents.memory.w_memory import WorkingMemory, WMemoryItem
 from k_agents.translation.code_indexer import add_exp_to_ltm
 from k_agents.translation.env import TranslationAgentEnv
 from k_agents.translation.procedure_indexer import extract_procedures_to_lt_memory
@@ -99,12 +99,6 @@ class CodegenIdea(Idea):
                             for suggestion in
                             code_suggestions]
         code_suggestions = "".join(code_suggestions)
-        notices = """
-        - Call exactly one time to the experiment function / class in this edit.
-        - Every class or function call will include the data analysis inside the call automatically so there is no need to do data analysis separately.
-        - Always use named arguments to call functions or classes.
-        - Store the return value of the call functions or classes to a variable.
-        """
         prompt = f"""
 Your task is to generate new code for the context described below.        
 <context>
@@ -122,7 +116,7 @@ You are required to adopt code from one of <code_suggestion> that can be used to
 The adopted code should absolutely just be what should appear in the place of # [slot]. 
 Some of the <code_suggestion> might be misleading. But you must pick the most relevant one.
 You should first output an analysis of which code suggestion should be used to fill the slot in <code_to_complete>.
-Then, wrapped by ```python and ```, output the new code that can fill the slot in <code_to_complete>. The last line of the generated code must be in the format: `experiment_<name> = <ExperimentName>(argument1,argument2, ...)`. The code must be executable. 
+Then, wrapped by ```python and ```, output the new code that can fill the slot in <code_to_complete>. The last line of the generated code must be in the format: `experiment = <ExperimentName>(argument1,argument2, ...)`. The code must be executable. No placeholders are allowed.
 </requirements>
         """
         chat = Chat(prompt)
@@ -231,7 +225,7 @@ def build_code_ltm(module, document_paths: List[str] = None):
 
     # Load the AI automated experiment class for nested execution.
 
-    from k_agents.experiment.automation import AutoRun
+    from k_agents.execution.agent import AutoRun
     var_table.add_variable('AutoRun', AutoRun, None)
 
     def _add_exp_to_ltm(exp_cls: Type[Any]):
