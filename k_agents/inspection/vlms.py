@@ -46,7 +46,7 @@ def run_visual_inspection(image: "Image", prompt: str, func_file_path, rescale=0
                        "and 'success'(boolean)")
     chat.add_user_message("Here is the input image:")
     chat.add_image_message(image)
-    res = chat.complete(parse="dict", **kwargs)
+    res = chat.complete(parse="dict", cache=True, **kwargs)
 
     return res
 

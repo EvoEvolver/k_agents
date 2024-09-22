@@ -83,7 +83,7 @@ class ExecutionAgentBase:
 
             experiment_analysis_html = dict_to_html(inspection_result)
             color = 'light_green' if inspection_result[
-                'Experiment success'] else 'light_red'
+                'success'] else 'light_red'
             agent_message_box(
                 f"Experiment analysis results are as follows:<br>{experiment_analysis_html}",
                 color=color)
@@ -144,7 +144,7 @@ class ExecutionAgentBase:
         # return {
         #    "Analysis": self.final_result["analysis"],
         #    "Suggested parameter updates": None,
-        #    'Experiment success': self.final_result["success"],
+        #    'success': self.final_result["success"],
         # }
 
         raise NotImplementedError
@@ -210,7 +210,8 @@ def run_stage_description(stage: 'Stage', translation_agent, var_table,
         hide_spinner(spinner_id)
         display_chat("Stage Planning AI", 'light_blue',
                      f"Stage {stage.label} is too complex to be processed in one step. Planning to break down the stage into smaller steps. {breakdown_requirement['reason']}.")
-        exp = ExecutionAgent(stage.description, sub_experiment=True,
+        exp = ExecutionAgent()
+        exp.run(stage.description, sub_experiment=True,
                              **exp_inputs_table.variable_objs)
         new_var_table = var_table.new_child_table()
         new_var_table.add_variable("exp", exp)

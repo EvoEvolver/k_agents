@@ -75,7 +75,7 @@ def get_next_stage_label(current_stage: Stage, experiment_result: dict[str, str]
 
     for key, value in experiment_result.items():
         if key == 'Suggested parameter updates':
-            if experiment_result['Experiment success']:
+            if experiment_result['success']:
                 result_prompt += f"Result from {key}: {None}\n\n"
                 continue
 

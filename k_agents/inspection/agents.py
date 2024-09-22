@@ -31,6 +31,7 @@ class TextInspectionAgent(InspectionAgent):
         display_chat(agent_name=f"Inspection Agent",
                      content='<br>' + html,
                      background_color=color)
+        return res
 
 class VisualInspectionAgent(InspectionAgent):
 
