@@ -113,7 +113,7 @@ You are trying to call a experiment to fill the code_to_complete in Python. The 
 </available_variables>
 <requirements>
 You should output a JSON dict. The keys should be
-- "evidence": Evidence that indicates the experiment is relevant to the task or not.
+- "evidence": Evidence that indicates the experiment is relevant to the task or not. The experiment should considered irrelevant if it contains extra keywords or irrelevant information.
 - "analysis" : The brief analysis of the relation between the experiment based on the evidence. You should notice that the code_to_complete might be irrelevant to the experiment. You should be careful not assume additional information.
 - "applicable": A boolean whether the experiment you hold is suitable for implementing the task. 
 - "code": A code snippet that is helpful for filling the slot. The last line of the snippet must be in the format: `experiment_<name> = {self.exp_cls.__name__}(argument1,argument2, ...)`.

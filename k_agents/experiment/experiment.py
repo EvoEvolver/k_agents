@@ -1,11 +1,10 @@
 import inspect
-import pprint
 import warnings
 from typing import Callable, Any, Dict, List
 
 from mllm import Chat
 
-from k_agents.inspection.agents import VisualInspectionAgent
+from k_agents.inspection.agents import InspectionAgent
 from k_agents.inspection.vlms import matplotlib_plotly_to_pil
 from k_agents.notebook_utils import show_spinner, hide_spinner
 
@@ -17,7 +16,7 @@ class Experiment:
 
     def __init__(self, *args, **kwargs):
         self._ai_inspection_results = {}
-        self._ai_final_analysis = None
+        self._ai_inspection_summary = None
 
         self._plot_function_result_objs = {}
         self._plot_function_images = {}
@@ -87,76 +86,82 @@ class Experiment:
         assert self.run_kwargs is not None, "The experiment has not been run yet."
         return _rebuild_args_dict(self.bare_run, self.run_args, self.run_kwargs)
 
-    def get_ai_inspection_results(self, inspection_method='full', ignore_cache=False):
+    def get_ai_inspection_summary(self):
         """
         Get the AI inspection results.
-
-        Parameters:
-            inspection_method (str): The inspection method to use. Can be 'full' or 'visual_only' or 'fitting_only'.
-            ignore_cache (bool): Whether to ignore the cache.
 
         Returns:
             dict: The AI inspection results.
         """
-        ai_inspection_results = {}
-
-        assert inspection_method in ['full', 'visual_only', 'fitting_only'], \
-            f"inspection_method must be 'full', 'visual_only' or 'fitting_only', got {inspection_method}"
-
         agents = self._get_inspection_agents()
-        visual_agents = []
-        other_agents = []
-        for agent in agents:
-            if isinstance(agent, VisualInspectionAgent):
-                visual_agents.append(agent)
-            else:
-                other_agents.append(agent)
+        summary = self._get_ai_inspection_results_from_some_agents(agents)
+        return summary
 
+    def _get_ai_inspection_results_from_some_agents(self, agents: List[InspectionAgent]):
+        ai_inspection_results = {}
         # Add the visual inspection results to the AI inspection results.
-        if inspection_method != 'fitting_only':
-            for agent in visual_agents:
-                inspect_answer = agent.run(self)
-                if inspect_answer is not None:
-                    ai_inspection_results[agent.label] = inspect_answer
+        for agent in agents:
+            inspect_answer = agent.run(self)
+            if inspect_answer is not None:
+                ai_inspection_results[agent.label] = inspect_answer
 
-        # Add the fitting results to the AI inspection results.
-        if inspection_method != 'visual_only':
-            for agent in other_agents:
-                inspect_answer = agent.run(self)
-                if inspect_answer is not None:
-                    ai_inspection_results[agent.label] = inspect_answer
+        self._ai_inspection_results = ai_inspection_results
 
-        raw_summary = self._summarize_inspection_results(
-            list(ai_inspection_results.values()), ignore_cache)
-
-        summary = {}
-        if 'analysis' in raw_summary:
-            summary['analysis'] = raw_summary['analysis']
-            del raw_summary['analysis']
-        if 'success' in raw_summary:
-            summary['success'] = raw_summary['success']
-            del raw_summary['success']
-        for key, value in raw_summary.items():
-            summary[key] = value
+        summary = self._summarize_inspection_results(ai_inspection_results)
 
         return summary
 
-    def _summarize_inspection_results(self, ai_inspection_results: List, ignore_cache):
+    def _summarize_inspection_results(self, ai_inspection_results: Dict[str, Dict]):
         # Summarize the AI inspection results based on the experiment result analysis instructions.
-        if self._experiment_result_analysis_instructions is None:
-            raise ValueError(
-                "The experiment result analysis instructions are not defined."
-            )
-        if self._ai_final_analysis is None or ignore_cache:
 
-            summary = get_experiment_summary(self, ai_inspection_results)
+        assert self._experiment_result_analysis_instructions is not None, "The experiment result analysis instructions are not defined."
+        arg_dict = _rebuild_args_dict(self.run, self.run_args, self.run_kwargs)
 
-            if not ignore_cache:
-                self._ai_final_analysis = summary
+        insp_result_in_prompt = []
+        for label, result_dict in ai_inspection_results.items():
+            insp_result_in_prompt.append(f"# {label}")
+            for key, value in result_dict.items():
+                insp_result_in_prompt.append(f"{key}: {value}")
+            insp_result_in_prompt.append("")
+        insp_results_str = "\n".join(insp_result_in_prompt)
 
-        else:
-            summary = self._ai_final_analysis
-        return summary
+        prompt = f"""
+        Summarize the experiment results and report the key results. Indicate if the experiment was successful or failed.
+        If failed, suggest possible updates to the parameters or the experiment design if the experiment fails. The suggestion
+        needs to be specific on how much of the quantity needs to be changed on the parameters. Otherwise return None for the
+        parameter updates.
+    
+        <Run parameters>
+        {arg_dict}
+        </Run parameters>
+    
+        <Results>
+        {insp_results_str}
+        </Results>
+    
+        <analysis_instructions> 
+        {self._experiment_result_analysis_instructions}
+        </analysis_instructions>
+        """
+        if not self._rewrite_json_requirement:
+            prompt += """
+        <Return>
+        Return in JSON with the following keys:
+        "analysis" (string): an analysis of the experiment results and the success of the experiment.
+        "success" (bool): whether the experiment was successful or not.
+        </Return>        
+        """
+
+        spinner_id = show_spinner(f"Analyzing experiment results...")
+        chat = Chat(prompt,
+                    "You are a very smart and helpful assistant who only reply in JSON dict",
+                    dedent=True)
+        res = chat.complete(parse="dict", expensive=True, cache=True)
+        hide_spinner(spinner_id)
+
+        self._ai_inspection_summary = res
+
+        return res
 
     @classmethod
     def _get_inspection_agents(cls):
@@ -172,13 +177,6 @@ class Experiment:
 
     def log_info(self, message):
         print(message)
-
-    @classmethod
-    def is_ai_compatible(cls):
-        """
-        A method to indicate that the experiment is AI compatible.
-        """
-        return cls._experiment_result_analysis_instructions is not None
 
     @property
     def is_simulation(self):
@@ -285,58 +283,3 @@ def _rebuild_args_dict(
     mapped_args.update(called_kwargs)
 
     return mapped_args
-
-
-
-def get_experiment_summary(exp: Experiment, ai_inspection_results: list):
-    """
-    Summarize the experiment results.
-    """
-    arg_dict = _rebuild_args_dict(exp.run, exp.run_args, exp.run_kwargs)
-
-    insp_result_in_prompt = []
-    for result_dict in ai_inspection_results:
-        for key, value in result_dict.items():
-            insp_result_in_prompt.append(f"{key}: {value}")
-        insp_result_in_prompt.append("---")
-    insp_results_str = "\n".join(insp_result_in_prompt)
-    prompt = f"""
-Summarize the experiment results and report the key results. Indicate if the experiment was successful or failed.
-If failed, suggest possible updates to the parameters or the experiment design if the experiment fails. The suggestion
-needs to be specific on how much of the quantity needs to be changed on the parameters. Otherwise return None for the
-parameter updates.
-
-<Run parameters>
-{arg_dict}
-</Run parameters>
-
-<Results>
-{insp_results_str}
-</Results>
-
-<analysis_instructions> 
-{exp._experiment_result_analysis_instructions}
-</analysis_instructions>
-"""
-    if not exp._rewrite_json_requirement:
-        prompt += """
-Return in json format:
-<Return>
-{
-"analysis": str,
-"success": bool,
-}
-</Return>        
-"""
-
-    spinner_id = show_spinner(f"Analyzing experiment results...")
-    chat = Chat(prompt, "You are a very smart and helpful assistant who only reply in JSON dict")
-    res = chat.complete(parse="dict", expensive=True, cache=True)
-    hide_spinner(spinner_id)
-    return res
-
-"""
-<Experiment document>
-{exp.run.__doc__}
-</Experiment document>
-"""

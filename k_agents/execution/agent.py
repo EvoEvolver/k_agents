@@ -1,16 +1,20 @@
+import json
+import pprint
 import warnings
 from typing import Dict, Any, List, TYPE_CHECKING
 
 import numpy
 from IPython.core.display import display, HTML
-if TYPE_CHECKING:
-    from k_agents.experiment.experiment import Experiment
+from mllm import Chat
+
+from k_agents.experiment.experiment import Experiment
 from k_agents.notebook_utils import display_chat, code_to_html, dict_to_html
 from k_agents.notebook_utils import show_spinner, hide_spinner
 from k_agents.execution import find_the_stage_label_based_on_description
 from k_agents.execution.stage_execution import check_if_needed_to_break_down, Stage, \
     get_exp_from_var_table
-from k_agents.execution.stage_generation import get_stages_from_instruction, stages_to_html
+from k_agents.execution.stage_generation import get_stages_from_instruction, \
+    stages_to_html
 from k_agents.execution.stage_transition import get_next_stage_label, \
     generate_new_stage_description
 from k_agents.translation.agent import get_codegen_wm
@@ -18,10 +22,24 @@ from k_agents.translation.env import TranslationAgentEnv
 from k_agents.variable_table import VariableTable
 
 np = numpy
-__all__ = ["OneInstExecutionAgent", "ExecutionAgent", "AutoRun"]
+__all__ = ["AutomatedExperiment", "AutoRun"]
 
 
-class ExecutionAgentBase:
+def add_inspection_result_to_var_table(inspection_result, runtime_var_table):
+    for key, value in inspection_result.items():
+        if key.lower() in ["success", "analysis"]:
+            continue
+        elif isinstance(value, str):
+            continue
+        elif value is None:
+            continue
+        else:
+            key = key.replace(" ", "_")
+            key = key.replace("-", "_")
+            runtime_var_table.add_variable("_"+key, value)
+
+
+class ExecutionAgent:
     """
     An experiment that contains multiple stages to be run.
     """
@@ -31,7 +49,8 @@ class ExecutionAgentBase:
         self.stages: List[Stage] = None
         self.history_experiments: List[Experiment] = []
         self.history_inspections: List[Dict[str, Any]] = []
-        self.final_result = None
+        self.succeeded = None
+        self.final_analysis = None
         self.max_step_per_stage = 6
 
         trans_env = TranslationAgentEnv()
@@ -39,14 +58,33 @@ class ExecutionAgentBase:
         self.translation_var_table = trans_env.translation_var_table
         assert self.translation_agent is not None, "Translation agent has not been initialized."
 
-    def run(self, stages: List[Stage], sub_experiment=False, **kwargs):
+    def generate_stages(self, steps: str):
+        """
+        Generate stages from the instructions.
+
+        Parameters
+        ----------
+        steps: str
+            The instructions to generate the stages.
+
+        Returns
+        -------
+        stages: List[Stage]
+            The generated stages.
+        """
+        spinner_id = show_spinner("AI is designing the experiment...")
+        self.stages = get_stages_from_instruction(steps)
+        hide_spinner(spinner_id)
+        agent_message_box(
+            "The planned experiments are:<br>" + stages_to_html(self.stages),
+            color='light_blue')
+
+    def run(self, variables, sub_experiment=False):
         """
         Run the staged experiment powered by language model.
 
         Parameters
         ----------
-        stages: List[Stage]
-            The stages of the experiment.
         sub_experiment: bool
             Whether the experiment is a sub-experiment. If it is we do not allow it to be further splitted.
         kwargs
@@ -55,28 +93,29 @@ class ExecutionAgentBase:
         Returns
         -------
         """
-
-        self.stages: List[Stage] = stages
+        assert self.stages is not None, "Stages have not been generated. Rub self.generate_stages first."
         exp_inputs_table, runtime_var_table = make_var_table(self.translation_var_table,
-                                                             kwargs)
+                                                             variables)
         coding_ltm_cache = {}
         curr_stage = self.stages[0]
 
         self.history_experiments = []
 
         for step in range(len(self.stages) * self.max_step_per_stage):
-            curr_stage.n_passes += 1
+            curr_stage.n_failed += 1
             exp_object = run_stage_description(curr_stage, self.translation_agent,
                                                runtime_var_table, exp_inputs_table,
                                                coding_ltm_cache,
-                                               sub_experiment)
+                                               True)
 
             if exp_object is None:
                 warnings.warn(f"Experiment object not found in the variable table.")
                 # re-run the stage
                 continue
 
-            inspection_result = exp_object.get_ai_inspection_results()
+            inspection_result = exp_object.get_ai_inspection_summary()
+
+            add_inspection_result_to_var_table(inspection_result, runtime_var_table)
 
             self.history_experiments.append(exp_object)
             self.history_inspections.append(inspection_result)
@@ -92,7 +131,6 @@ class ExecutionAgentBase:
 
             next_stage_info = get_next_stage_label(curr_stage, inspection_result)
             next_stage_label = next_stage_info["next"]
-            additional_info = next_stage_info["additional_info"]
 
             if next_stage_label in ["Complete", "Fail"]:
                 hide_spinner(spinner_id)
@@ -101,8 +139,7 @@ class ExecutionAgentBase:
             next_stage = find_next_stage(self.stages, next_stage_label)
 
             if curr_stage.label in next_stage.label:
-                new_description = generate_new_stage_description(next_stage,
-                                                                 additional_info)
+                new_description = generate_new_stage_description(next_stage)
                 next_stage.description = new_description
 
             hide_spinner(spinner_id)
@@ -128,26 +165,14 @@ class ExecutionAgentBase:
                 "Too many steps have been taken. The experiment is not complete.",
                 color='light_red')
 
-        self.final_result = {
-            "success": next_stage_label == "Complete",
-            "analysis": self.history_experiments[-1].get_ai_inspection_results()
-        }
+        self.succeeded = next_stage_label == "Complete",
+        self.final_analysis = self.history_experiments[-1].get_ai_inspection_summary()
 
     def history_to_prompt(self):
         prompt = []
         for inspection_result in self.history_inspections:
-            prompt.append(inspection_result['Analysis'])
-
-    def get_ai_inspection_results(self) -> Dict[str, Any]:
-        # TODO
-
-        # return {
-        #    "Analysis": self.final_result["analysis"],
-        #    "Suggested parameter updates": None,
-        #    'success': self.final_result["success"],
-        # }
-
-        raise NotImplementedError
+            prompt.append(json.dumps(inspection_result, indent=0))
+        return "\n".join(prompt)
 
 
 def find_next_stage(stages, next_stage_label):
@@ -178,7 +203,7 @@ def make_var_table(translation_var_table, kwargs):
     return exp_inputs_table, var_table
 
 
-def run_stage_description(stage: 'Stage', translation_agent, var_table,
+def run_stage_description(stage: 'Stage', translation_agent, runtime_var_table,
                           exp_inputs_table: VariableTable, coding_ltm_cache,
                           sub_experiment):
     """
@@ -210,15 +235,16 @@ def run_stage_description(stage: 'Stage', translation_agent, var_table,
         hide_spinner(spinner_id)
         display_chat("Stage Planning AI", 'light_blue',
                      f"Stage {stage.label} is too complex to be processed in one step. Planning to break down the stage into smaller steps. {breakdown_requirement['reason']}.")
-        exp = ExecutionAgent()
-        exp.run(stage.description, sub_experiment=True,
-                             **exp_inputs_table.variable_objs)
-        new_var_table = var_table.new_child_table()
+        exp = AutomatedExperiment(stage.description, runtime_var_table.variable_objs)
+        new_var_table = runtime_var_table.new_child_table()
         new_var_table.add_variable("exp", exp)
 
         return new_var_table
 
-    codegen_wm = get_codegen_wm(stage.description, exp_inputs_table)
+    prompt_table = VariableTable()
+    prompt_table.update_by_other_table(runtime_var_table)
+    prompt_table.update_by_other_table(exp_inputs_table)
+    codegen_wm = get_codegen_wm(stage.description, prompt_table)
 
     if stage.title not in coding_ltm_cache:
         recall_res = translation_agent.recall(codegen_wm)
@@ -229,7 +255,7 @@ def run_stage_description(stage: 'Stage', translation_agent, var_table,
     # with display_chats():
     codes = translation_agent.codegen(codegen_wm, recall_res)
 
-    new_var_table = var_table.new_child_table()
+    new_var_table = runtime_var_table.new_child_table()
 
     hide_spinner(spinner_id)
     code_html = code_to_html(codes)
@@ -242,56 +268,25 @@ def run_stage_description(stage: 'Stage', translation_agent, var_table,
     return exp_object
 
 
-class OneInstExecutionAgent(ExecutionAgentBase):
-    """
-    An experiment that contains one instruction (step) to be run. The instructions are powered by language model.
-    """
-
-    def run(self, instructions: str, next_stage_guide=None, **kwargs):
-        """
-        Run the experiment powered by language model.
-
-        Parameters
-        ----------
-        instructions: str
-            The prompt to run the experiment. Contains the experiment design and instructions.
-        kwargs
-            Additional keyword arguments.
-
-        Returns
-        -------
-        """
-        # label: str, title: str, overview: str, description: str, next_stage_guide: str
-
-        if next_stage_guide is None:
-            next_stage_guide = """Go to Complete if success. 
-                                Go back to the same stage if the experiment failed and the parameters should be adjusted.
-                                Go to Fail if the experiment failed and the parameters cannot be adjusted.
-                                Go to Fail if the experiment failed and there is no suggestion for how to adjust the parameters.
-                                Follow the instructions on how to transit to the next stage from the report of the experiment if there is any.
-                                Go to Fail if the experiment has failed after 3 attempts."""
-
-        stage = Stage(label="Stage1", title="Implement experiment",
-                      overview='You are requested to implement one experiment and modify the parameter to make it success.',
-                      description=instructions, next_stage_guide=next_stage_guide
-                      )
-        stage_complete = Stage("Complete", "Complete", "The experiment is complete.",
-                               "End of experiment.",
-                               next_stage_guide='None')
-        stage_fail = Stage("Fail", "Fail", "The experiment has failed.",
-                           "End of experiment.", next_stage_guide='None')
-        stages = [stage, stage_complete, stage_fail]
-
-        super().run(stages, **kwargs)
-
-
-class ExecutionAgent(ExecutionAgentBase):
+class AutomatedExperiment(Experiment):
     """
     A fully automated experiment that contains multiple steps. Automatically runs the experiment based on the instructions
     provided.
     """
 
-    def run(self, instructions: str, sub_experiment=False, **kwargs):
+    _title = None
+    _original_steps = None
+    _background = None
+    _expected_result = None
+    decorate_run = False
+
+    def __init__(self, instructions: str, variables):
+        super().__init__()
+        self.exec_agent: ExecutionAgent = ExecutionAgent()
+        self.instructions = instructions
+        self.run(instructions, variables)
+
+    def run(self, instructions: str, variables: dict, sub_experiment=False, ):
         """
         Run the automated experiment powered by language model.
 
@@ -301,24 +296,97 @@ class ExecutionAgent(ExecutionAgentBase):
             The prompt to run the experiment. Contains the experiment design and instructions.
         sub_experiment: bool
             Whether the experiment is a sub-experiment. If it is we do not allow it to be further splitted.
-        kwargs
-            Additional keyword arguments.
+        variables: dict
 
         Returns
         -------
         """
+        if self._original_steps is not None:
+            spinner_id = show_spinner(f"Decomposing instructions...")
+            steps = self.decompose_instruction(instructions)
+            hide_spinner(spinner_id)
+        else:
+            steps = instructions
 
-        spinner_id = show_spinner("AI is designing the experiment...")
-        stages = get_stages_from_instruction(instructions)
-        hide_spinner(spinner_id)
-        agent_message_box("The planned experiments are:<br>" + stages_to_html(stages),
-                          color='light_blue')
+        self.exec_agent.generate_stages(steps)
+        self.exec_agent.run(variables, sub_experiment=sub_experiment)
 
-        super().run(stages, sub_experiment=sub_experiment, **kwargs)
+    def decompose_instruction(self, instruction):
+        prompt = f"""
+        You are required to modify a instruction based on an example.
+        <example>
+        <instruction>
+        {self._title}
+        </instruction>
+        <steps>
+        {self._original_steps}
+        </steps>
+        <example>
+        The instruction has the following background description, which might be irrelevant your task:
+        <background>
+        {self._background}
+        </background>
+        Your task is to modify the following input_instruction into its corresponding steps in a way that is similar to the example.
+        <input_instruction>
+        {instruction}
+        </input_instruction>
+        <requirements>
+        You are required to output a JSON dict with keys:
+        - "analysis" (string): An analysis of how to decompose the input_instruction into steps.
+        - "steps" (string): A string for the decomposed steps of the input_instruction based on <steps>. You should make minimal modifications to the <steps> when adopt it to the new steps.
+        """
+        chat = Chat(prompt, dedent=True)
+        res = chat.complete(parse="dict", expensive=True)
+        return res["steps"]
+
+    def get_ai_inspection_summary(self):
+        assert self.exec_agent.succeeded is not None, "Experiment has not been run yet."
+        history = self.exec_agent.history_to_prompt()
+        expected_result_instruction_prompt = ""
+        if self._expected_result is not None:
+            expected_result_instruction_prompt = f"""
+            You need to emphasize the expected key results of the experiment.
+            <expected_result>
+            {self._expected_result}
+            </expected_result>
+            """
+
+        success_prompt = "The experiment has succeeded." if self.exec_agent.succeeded else "The experiment has failed."
+
+        prompt = f"""
+        You are trying to summarize the execution of an experiment that contains multiple stages. The experiment has been run and the results have been recorded. 
+        The experiment is described as follows:
+        <title>
+        {self._title}
+        </title>
+        <background>
+        {self._background}
+        </background>
+        <steps>
+        {self.instructions}
+        </steps>
+        
+        {success_prompt} The report of each steps of the experiment are as follows:
+        <reports>
+        {history}
+        </reports>
+         
+        {expected_result_instruction_prompt}
+        
+        <requirements>
+        You are required to output a JSON dict with keys:
+        - "analysis" (string): An analysis of the results of the experiment.
+        - "results" (string): A very short summary of the experiment with an emphasis on the key results.        
+        </requirements>
+        """
+        chat = Chat(prompt, dedent=True)
+        res = chat.complete(parse="dict")
+        return res["results"]
 
 
-def AutoRun(instructions, **kwargs):
-    ExecutionAgent().run(instructions, **kwargs)
+def AutoRun(instruction, **kwargs):
+    exp = AutomatedExperiment(instruction, kwargs)
+    return exp
 
 
 def execute_experiment_from_prompt(prompt: str, **kwargs):

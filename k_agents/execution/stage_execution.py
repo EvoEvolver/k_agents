@@ -3,6 +3,7 @@ from typing import Optional
 from k_agents.experiment.experiment import Experiment
 from k_agents.variable_table import VariableTable
 
+import mllm
 
 class Stage:
     """Represents a stage in an experimental workflow."""
@@ -14,7 +15,7 @@ class Stage:
         self.description = description  # Description of what happens in this stage
         self.next_stage_guide = next_stage_guide  # Guidance for transitioning to the next stage
         self.var_table = None  # Variable table specific to this stage, initialized later
-        self.n_passes = 0  # Number of times the stage has been executed
+        self.n_failed = 0  # Number of times the stage has been executed
 
     def to_dict(self) -> dict:
         """Converts the stage to a dictionary."""
@@ -90,8 +91,7 @@ def check_if_needed_to_break_down(description: str):
     }}
     """
 
-    import mllm
-    chat = mllm.Chat(prompt, "You are a very smart and helpful assistant who only reply in JSON dict")
+    chat = mllm.Chat(prompt, "You are a very smart and helpful assistant who only reply in JSON dict", dedent=True)
     res = chat.complete(parse="dict", expensive=True, cache=True)
 
     return res

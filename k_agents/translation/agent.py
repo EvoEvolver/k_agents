@@ -113,8 +113,9 @@ You must use the following code_suggestions to generate the code:
 </context>
 <requirements>
 You are required to adopt code from one of <code_suggestion> that can be used to fill the slot in <code_to_complete>.
-The adopted code should absolutely just be what should appear in the place of # [slot]. 
-Some of the <code_suggestion> might be misleading. But you must pick the most relevant one.
+- The adopted code should absolutely just be what should appear in the place of # [slot]. 
+- Some of the <code_suggestion> might be misleading. But you must pick the most relevant one.
+- code suggestions starting with AutoExperiment should be considered with priority.
 You should first output an analysis of which code suggestion should be used to fill the slot in <code_to_complete>.
 Then, wrapped by ```python and ```, output the new code that can fill the slot in <code_to_complete>. The last line of the generated code must be in the format: `experiment_<ExperimentName> = <ExperimentName>(argument1,argument2, ...)`. The code must be executable. No placeholders are allowed.
 </requirements>
@@ -217,9 +218,7 @@ def build_code_ltm(module, document_paths: List[str] = None):
     for node in module_root.iter_subtree_with_dfs():
         if get_type(node) == "class":
             class_obj = get_obj(node)
-            if not issubclass(class_obj, Experiment):
-                continue
-            elif not class_obj.is_ai_compatible():
+            if not issubclass(class_obj, Experiment) or class_obj._experiment_result_analysis_instructions is None:
                 continue
             classes.append(class_obj)
 
@@ -236,6 +235,6 @@ def build_code_ltm(module, document_paths: List[str] = None):
 
     document_paths = document_paths or []
 
-    extract_procedures_to_lt_memory(document_paths, lt_memory)
+    extract_procedures_to_lt_memory(document_paths, lt_memory, var_table)
 
     return lt_memory, var_table

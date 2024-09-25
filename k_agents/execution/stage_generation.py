@@ -71,54 +71,42 @@ def refine_stage_description(res: dict) -> dict:
     """
 
     prompt = f"""
-Please refine the description generated from the input with the following condition. Note that the description
-may only reflect part of the input.
+You are required to separate a description based on some rules.
 
-<input prompt>
-{res["Reference"]}
-</input prompt>
+<reference>
+{res['Reference']}
+</reference>
 
-<generated title>
+<title>
 {res['Title']}
-</generated title>
+</title>
 
-<generated description>
+<description>
 {res['ExperimentDescription']}
-</generated description>
+</description>
 
-- If the generated description contains information not related to the input, remove it. 
-- If the generated description contains objectives or goals, remove them.
+<requirements>
+- If the description contains information not related to the input, remove it. 
+- If the description contains objectives or goals, remove them.
 - Quote the the parameters and the values in the format of `"<parameter name>=<parameter value>"` if the actual values are present in the description. 
     The values should be the actual values, not placeholders. 
 - Only modify the parts described above, keep the rest of the description as is.
 - If this stage only contains data and result analysis and interpretation without carrying out any experiment,
   please set the <contains_experiment> to False. Otherwise set it to True.
-- If the generated description contains information that is not present in the reference, for example the details
+- If the description contains information that is not present in the reference, for example the details
    how to implement each stages but they are not specifically described in the reference, remove these information.
-
-Follow the following example format exactly and strictly and do not include any additional information
- in the description. Do not include any information that is not presented in the description, such as the details
+- Do not include any additional information in the description. Do not include any information that is not presented in the description, such as the details
  in how to implement each steps based on your knowledge.
+</requirements>
 
-Example output when no parameters and their values are present:
-<example 1>
-{{
-    "analysis":"<Describe your thought process for updating the stage description.>",
-    "description":"Conduct the <experiment name>.",
-    "contains_experiment": <true/false>
-}}
-</example 1>
-
-Example output when parameters and their values are present:
- <example 2>
-{{
-    "analysis":"<Describe your thought process for updating the stage description.>",
-    "description":"Conduct the <experiment name> with parameters <parameter list for experiment>.",
-    "contains_experiment": <true/false>
-}}
-</example 2>
-
-
+<formats>
+Response in JSON with the following keys:
+"analysis" (string):" an analysis about how to update the stage description.,
+"action_description" (string): the description about the action. For example: "Conduct the <experiment name> with xxx parameter." You should not mention what to do next based on the result.
+"background_description" (string): the background information of the experiment. (could be empty),
+"next" (string): what to do next based on the result of the experiment. (could be empty),
+"contains_experiment" (bool): whether the stage contains an experiment or not.
+</formats>
 """
 
     chat = mllm.Chat(prompt,
@@ -127,7 +115,7 @@ Example output when parameters and their values are present:
 
     new_res = {
         "Title": res["Title"],
-        "ExperimentDescription": updated_res["description"],
+        "ExperimentDescription": updated_res["action_description"],
         "Next": res["Next"],
         'contains_experiment': updated_res["contains_experiment"]
     }
@@ -182,18 +170,19 @@ Create a structured workflow for conducting a series of scientific experiments t
 
 - Stages: Divide the experiment into distinct stages, each representing a specific operation. 
 Note: Generate as less stages as possible, ideally just one stage, but make sure each stage is distinct and has a clear purpose.
+
 Note: If multiple sets of parameters are used for the same experiment, they should be considered into different stages.
 Note: The data and result analysis and interpretation should not be considered as a stage.
 Note: Refinement of the parameters should be included in the same stage, not in a separate stage.
 Note: Do not include any additional information that is not present in the description, for example the details how to implement each stages.
+Note: The description might mixes the action description and transition rules, you must separate them. You must not take a transition rule as a separate stage. 
 
-- ExperimentDescription: Provide a detailed procedural outline for each stage of the experiment. The description should explicitly state the name of the experiment, list all parameters involved, and clearly outline the steps to be taken. This information will be distributed among various team members, who will carry out the tasks. Ensure that each instruction is clear and self-sufficient, enabling team members to execute their respective parts without needing additional context or clarification. Do not include objectives or goals in the description.
+- ExperimentDescription: Provide a procedural outline for each stage of the experiment. The description should explicitly state the name of the experiment, list all parameters involved, and clearly outline the steps to be taken. You should not mention how the experiment will be executed.
 
 - StageTransitions:
-    - `Advance`: Always proceed to the next stage when the experiment succeeded.
-    - `Retry`: Specify when to repeat a stage with adjustments. Always retry at least 3 times when error occured 
-        before revert to the previous stage.
-    - `Revert`: Return to the previous stage.
+Note: By default, always proceed to the next stage when the experiment succeeded.
+Note: When there are additional descriptions about how to transition to the next stage based on the results of the experiment, include them in the transition rules.
+
 - Reference: Include the original input prompt related to each stage for reference and context.
 </output>
 <output_format>
@@ -206,13 +195,13 @@ The NEXT key must be a string detailing the transition conditions. Do not use "r
   "Stage1": {
     "Title": "Experiment1",
     "ExperimentDescription": "Conduct the <experiment name 1> with parameters <parameter list for experiment 1>.",
-    "Next": "Proceed to Stage2 if successful, adjust the parameter based on the results suggestion and retry Stage1 if not. After 3 failures, proceed to Fail."
+    "Next": "Proceed to Stage2 if successful. Else, adjust the parameter based on the results suggestion and retry Stage1."
     "Reference":'<The original input prompt related to this stage>'
   },
   "Stage2": {
     "Title": "Experiment2",
     "ExperimentDescription": "Conduct the <experiment name 2> with parameters <parameter list for experiment 2>.",
-    "Next": "Move to Complete if successful, return to Stage2 if inconclusive. After 3 failures, proceed to Fail."
+    "Next": "Move to Complete if successful, return to Stage2 if inconclusive."
     "Reference":'<The original input prompt related to this stage>'
   },
   "Complete": {
@@ -228,6 +217,7 @@ The NEXT key must be a string detailing the transition conditions. Do not use "r
 }
 </output_example>"""
 
+#This information will be distributed among various team members, who will carry out the tasks. Ensure that each instruction is clear and self-sufficient, enabling team members to execute their respective parts without needing additional context or clarification. Do not include objectives or goals in the description.
     completed_prompt = prompt
 
     chat = mllm.Chat(completed_prompt,
