@@ -31,7 +31,7 @@ class ProcedureCodegenIdea(EmbedIdea):
             available_variables = available_variables[0]
             var_table = available_variables.attrs["_table_obj"]
         prompt = f"""
-You are trying to rewrite the following instruction based on your knowledge.
+You are trying to rewrite the following instruction based on your knowledge to suit more general parameters.
 <input_instruction>
 {instruction}
 </input_instruction>
@@ -43,9 +43,12 @@ By your knowledge, there is an existing instruction that is available
 </knowledge>
 <requirements>
 You are required to output a JSON dict with the following keys
-- "analysis" (string): An analysis of the relation between the input_instruction and your knowledge. You should notice that the input_instruction might be totally irrelevant to your knowledge.
-- "proper" (bool): Whether your knowledge is proper for rewriting the input_instruction. Note that if the name of the experiment of your instruction contains terminology that is not in the input instruction, it is likely to be improper. 
-- "rewrote_instruction" (string, nullable): The input_instruction rewritten in a way based on the instruction in your knowledge.
+- "experiment_name_from_knowledge" (string): The name of the experiment
+- "experiment_name_from_input" (string): The name of the experiment in the input_instruction
+- "parameter_specification" (string): The specification of the parameters of the input_instruction 
+- "analysis" (string): An analysis of the relation between the input_instruction and your knowledge. You should notice that your knowledge is likely to be improper if the experiment name contains different keywords. However, the parameter_specification of the experiment can be different.
+- "proper" (bool): Whether the input_instruction can be regarded as a proper instance of the experiment in your knowledge.
+- "rewrote_instruction" (string, nullable): The input_instruction rewritten in a way based on the instruction in your knowledge. You should not change the parameter specification of the input_instruction.
 - "annotation" (string, nullable): A concise annotation that describe how you are confident that the rewrote_instruction is correct.
 </requirements>
 """

@@ -163,18 +163,15 @@ def get_stages_from_instruction(description: str) -> List[Stage]:
 {description}
 </experiment_description>
 <requirements>
-Create a structured workflow for conducting a series of scientific experiments that require sequential function calls to operate experimental equipment. Each stage of the experiment should represent a distinct operation with explicit instructions and transition rules, ensuring logical and smooth progression. The stages must be concise, self-contained, and clearly defined. Especially, you are required to output a JSON dict with the following elements:
+Create a structured workflow for conducting a series of scientific experiments that require sequential function calls to operate experimental equipment. Each stage of the experiment should represent a distinct operation with explicit instructions and transition rules. The stages must be concise, self-contained, and clearly defined. Especially, you are required to output a JSON dict with the following elements:
 </requirements>
 <output>
-- Overview: Summarize the requirement of the experiment. Only include the information from the input, do not add any additional information of your own.
 
 - Stages: Divide the experiment into distinct stages, each representing a specific operation. 
-Note: Generate as less stages as possible, ideally just one stage, but make sure each stage is distinct and has a clear purpose.
+Note: Generate as less stages as possible, ideally just one stage. However, you must make sure each stage is distinct and does not contain more than one experiment to carry out.
 
 Note: If multiple sets of parameters are used for the same experiment, they should be considered into different stages.
-Note: The data and result analysis and interpretation should not be considered as a stage.
-Note: Refinement of the parameters should be included in the same stage, not in a separate stage.
-Note: Do not include any additional information that is not present in the description, for example the details how to implement each stages.
+Note: Do not include any additional information that is not present in the description, for example, you must not imagine the details how to implement each stages.
 Note: The description might mixes the action description and transition rules, you must separate them. You must not take a transition rule as a separate stage. 
 
 - ExperimentDescription: Provide a procedural outline for each stage of the experiment. The description should explicitly state the name of the experiment, list all parameters involved, and clearly outline the steps to be taken. You should not mention how the experiment will be executed.
@@ -191,17 +188,16 @@ The NEXT key must be a string detailing the transition conditions. Do not use "r
 </output_format>""" + """
 <output_example>
 {
-  "Overview": <Summary of the experiment>
   "Stage1": {
     "Title": "Experiment1",
     "ExperimentDescription": "Conduct the <experiment name 1> with parameters <parameter list for experiment 1>.",
-    "Next": "Proceed to Stage2 if successful. Else, adjust the parameter based on the results suggestion and retry Stage1."
+    "Next": "Proceed to StageX if successful. Else, proceed to StageX"
     "Reference":'<The original input prompt related to this stage>'
   },
   "Stage2": {
     "Title": "Experiment2",
     "ExperimentDescription": "Conduct the <experiment name 2> with parameters <parameter list for experiment 2>.",
-    "Next": "Move to Complete if successful, return to Stage2 if inconclusive."
+    "Next": "Proceed to Complete if xx. Proceed to Stage2 if xxx"
     "Reference":'<The original input prompt related to this stage>'
   },
   "Complete": {
@@ -225,11 +221,9 @@ The NEXT key must be a string detailing the transition conditions. Do not use "r
     res = chat.complete(parse="dict", expensive=True, cache=True)
     stages = []
 
-    overview = res.pop("Overview")
 
     # Add overview to each dict in res
     for stage_name, stage_content in res.items():
-        stage_content['Overview'] = overview
         stage_content['label'] = stage_name
 
     stages_info = [k[1] for k in
@@ -246,7 +240,6 @@ The NEXT key must be a string detailing the transition conditions. Do not use "r
 
     for stage_info in stages_info:
         stage = Stage(label=stage_info['label'], title=stage_info['Title'],
-                      overview=stage_info['Overview'],
                       description=stage_info['ExperimentDescription'],
                       next_stage_guide=stage_info['Next'])
         stages.append(stage)

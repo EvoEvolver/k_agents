@@ -26,6 +26,8 @@ __all__ = ["AutomatedExperiment", "AutoRun"]
 
 
 def add_inspection_result_to_var_table(inspection_result, runtime_var_table):
+    if not isinstance(inspection_result, dict):
+        return
     for key, value in inspection_result.items():
         if key.lower() in ["success", "analysis"]:
             continue
@@ -72,7 +74,7 @@ class ExecutionAgent:
         stages: List[Stage]
             The generated stages.
         """
-        spinner_id = show_spinner("AI is designing the experiment...")
+        spinner_id = show_spinner("Generating state machine...")
         self.stages = get_stages_from_instruction(steps)
         hide_spinner(spinner_id)
         agent_message_box(
@@ -139,8 +141,9 @@ class ExecutionAgent:
             next_stage = find_next_stage(self.stages, next_stage_label)
 
             if curr_stage.label in next_stage.label:
-                new_description = generate_new_stage_description(next_stage)
-                next_stage.description = new_description
+                #new_description = generate_new_stage_description(next_stage)
+                #next_stage.description = new_description
+                ...
 
             hide_spinner(spinner_id)
 
@@ -165,7 +168,7 @@ class ExecutionAgent:
                 "Too many steps have been taken. The experiment is not complete.",
                 color='light_red')
 
-        self.succeeded = next_stage_label == "Complete",
+        self.succeeded = next_stage_label == "Complete"
         self.final_analysis = self.history_experiments[-1].get_ai_inspection_summary()
 
     def history_to_prompt(self):
@@ -215,11 +218,6 @@ def run_stage_description(stage: 'Stage', translation_agent, runtime_var_table,
         The stage to run.
     """
     spinner_id = show_spinner(f"Executing {stage.label}: {stage.title}...")
-
-    prompt = f"""
-    Overview of the funcationality: {stage.overview}
-    Current stage: {stage.label}
-    """
 
     html = stages_to_html([stage])
     display(HTML(html))
@@ -346,9 +344,9 @@ class AutomatedExperiment(Experiment):
         if self._expected_result is not None:
             expected_result_instruction_prompt = f"""
             You need to emphasize the expected key results of the experiment.
-            <expected_result>
+            <report_instruction>
             {self._expected_result}
-            </expected_result>
+            </report_instruction>
             """
 
         success_prompt = "The experiment has succeeded." if self.exec_agent.succeeded else "The experiment has failed."
@@ -367,21 +365,24 @@ class AutomatedExperiment(Experiment):
         </steps>
         
         {success_prompt} The report of each steps of the experiment are as follows:
-        <reports>
+        <results>
         {history}
-        </reports>
+        </results>
          
         {expected_result_instruction_prompt}
         
         <requirements>
         You are required to output a JSON dict with keys:
         - "analysis" (string): An analysis of the results of the experiment.
-        - "results" (string): A very short summary of the experiment with an emphasis on the key results.        
+        - "results" (string): A very short summary of the experiment with an emphasis on the key results.
         </requirements>
         """
         chat = Chat(prompt, dedent=True)
         res = chat.complete(parse="dict")
-        return res["results"]
+        return {
+            "results": res["results"],
+            "success": self.exec_agent.succeeded,
+        }
 
 
 def AutoRun(instruction, **kwargs):

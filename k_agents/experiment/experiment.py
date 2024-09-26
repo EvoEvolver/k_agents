@@ -117,6 +117,11 @@ class Experiment:
         assert self._experiment_result_analysis_instructions is not None, "The experiment result analysis instructions are not defined."
         arg_dict = _rebuild_args_dict(self.run, self.run_args, self.run_kwargs)
 
+        if len(self._experiment_result_analysis_instructions) == 0:
+            analysis_instruction_prompt = ""
+        else:
+            analysis_instruction_prompt = f"<analysis_instructions>\n{self._experiment_result_analysis_instructions}\n</analysis_instructions>"
+
         insp_result_in_prompt = []
         for label, result_dict in ai_inspection_results.items():
             insp_result_in_prompt.append(f"# {label}")
@@ -139,9 +144,7 @@ class Experiment:
         {insp_results_str}
         </Results>
     
-        <analysis_instructions> 
-        {self._experiment_result_analysis_instructions}
-        </analysis_instructions>
+        {analysis_instruction_prompt}
         """
         if not self._rewrite_json_requirement:
             prompt += """

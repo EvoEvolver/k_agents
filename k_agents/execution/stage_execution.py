@@ -8,10 +8,9 @@ import mllm
 class Stage:
     """Represents a stage in an experimental workflow."""
 
-    def __init__(self, label: str, title: str, overview: str, description: str, next_stage_guide: str):
+    def __init__(self, label: str, title: str, description: str, next_stage_guide: str):
         self.title = title  # Title of the stage
         self.label = label  # Unique identifier for the stage
-        self.overview = overview  # Overview of the stage
         self.description = description  # Description of what happens in this stage
         self.next_stage_guide = next_stage_guide  # Guidance for transitioning to the next stage
         self.var_table = None  # Variable table specific to this stage, initialized later
@@ -24,7 +23,6 @@ class Stage:
             "Title": self.title,
             "ExperimentDescription": self.description,
             "Next": self.next_stage_guide,
-            "Overview": self.overview,
         }
 
     def to_xml(self) -> str:
