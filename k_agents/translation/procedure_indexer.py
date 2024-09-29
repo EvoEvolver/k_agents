@@ -15,9 +15,13 @@ def get_experiment_name_for_procedure(title):
     # filter all the non-alphanumeric characters
     title = "".join([c for c in title if c.isalnum() or c == " "])
     # split the title by space
-    title = title.split(" ")
-    # join the title with underscore
-    title = "_".join(title)
+    title_segments = title.split(" ")
+    new_title_segments = []
+    for seg in title_segments:
+        # set the first character to uppercase
+        new_title_segments.append(seg[0].upper() + seg[1:])
+    # join the segments
+    title = "".join(new_title_segments)
     return title
 
 

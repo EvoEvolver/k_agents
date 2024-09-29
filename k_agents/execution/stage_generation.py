@@ -206,7 +206,7 @@ Note: The Next key must be a string detailing the transition conditions. Do not 
 Note: Generate as less stages as possible, ideally just one stage. However, you must make sure each stage is distinct and does not contain more than one experiment to carry out.
 </output_format>"""
 
-#This information will be distributed among various team members, who will carry out the tasks. Ensure that each instruction is clear and self-sufficient, enabling team members to execute their respective parts without needing additional context or clarification. Do not include objectives or goals in the description.
+    #This information will be distributed among various team members, who will carry out the tasks. Ensure that each instruction is clear and self-sufficient, enabling team members to execute their respective parts without needing additional context or clarification. Do not include objectives or goals in the description.
     completed_prompt = prompt
 
     chat = mllm.Chat(completed_prompt,
@@ -214,16 +214,16 @@ Note: Generate as less stages as possible, ideally just one stage. However, you 
     res = chat.complete(parse="dict", expensive=True, cache=True)
     stages = []
 
-    meta_stages = {  "Complete": {
-    "Title": "Completion",
-    "ExperimentDescription": "Conclude the experiment has succeeded.",
-    "Next": "None"
-  },
-  "Fail": {
-    "Title": "Failure",
-    "ExperimentDescription": "Conclude the experiment has failed.",
-    "Next": "None"
-  }}
+    meta_stages = {"Complete": {
+        "Title": "Completion",
+        "ExperimentDescription": "Conclude the experiment has succeeded.",
+        "Next": "None"
+    },
+        "Fail": {
+            "Title": "Failure",
+            "ExperimentDescription": "Conclude the experiment has failed.",
+            "Next": "None"
+        }}
     res.update(meta_stages)
 
     # Add overview to each dict in res
