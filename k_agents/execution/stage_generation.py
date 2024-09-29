@@ -53,7 +53,7 @@ Return format:
 
 {{
 "stages": List[dict]
-}}
+}} 
 """
 
     chat = mllm.Chat(prompt,
@@ -163,55 +163,48 @@ def get_stages_from_instruction(description: str) -> List[Stage]:
 {description}
 </experiment_description>
 <requirements>
-Create a structured workflow for conducting a series of scientific experiments that require sequential function calls to operate experimental equipment. Each stage of the experiment should represent a distinct operation with explicit instructions and transition rules. The stages must be concise, self-contained, and clearly defined. Especially, you are required to output a JSON dict with the following elements:
+Create a structured workflow for conducting a series of experiments. Each stage of the experiment should represent a distinct operation with explicit instructions and transition rules. The stages must be concise, self-contained, and clearly defined. 
+Especially, you are required to output a JSON dict with the following elements:
 </requirements>
 <output>
 
-- Stages: Divide the experiment into distinct stages, each representing a specific operation. 
-Note: Generate as less stages as possible, ideally just one stage. However, you must make sure each stage is distinct and does not contain more than one experiment to carry out.
+The JSON dict should contains keys for each stage of the experiment. The key should be the title of the stage. The value should be a dict containing the following keys:
 
-Note: If multiple sets of parameters are used for the same experiment, they should be considered into different stages.
-Note: Do not include any additional information that is not present in the description, for example, you must not imagine the details how to implement each stages.
-Note: The description might mixes the action description and transition rules, you must separate them. You must not take a transition rule as a separate stage. 
+- Title: Provide a descriptive title for the stage.
 
 - ExperimentDescription: Provide a procedural outline for each stage of the experiment. The description should explicitly state the name of the experiment, list all parameters involved, and clearly outline the steps to be taken. You should not mention how the experiment will be executed.
 
-- StageTransitions:
+-Next:
 Note: By default, always proceed to the next stage when the experiment succeeded.
 Note: When there are additional descriptions about how to transition to the next stage based on the results of the experiment, include them in the transition rules.
 
-- Reference: Include the original input prompt related to each stage for reference and context.
+- Reference: The original <experiment_description> related to each stage for reference and context.
 </output>
-<output_format>
-Present these instructions and conditions in a JSON format, with each stage as a key detailing the experiment and transition rules. 
-The NEXT key must be a string detailing the transition conditions. Do not use "retry", "advance", or "revert", instead describe the stage label directly.
-</output_format>""" + """
+""" + """
 <output_example>
 {
   "Stage1": {
     "Title": "Experiment1",
     "ExperimentDescription": "Conduct the <experiment name 1> with parameters <parameter list for experiment 1>.",
-    "Next": "Proceed to StageX if successful. Else, proceed to StageX"
+    "Next": "Proceed to Stage ... if successful. Else, proceed to Stage ..."
     "Reference":'<The original input prompt related to this stage>'
   },
-  "Stage2": {
-    "Title": "Experiment2",
-    "ExperimentDescription": "Conduct the <experiment name 2> with parameters <parameter list for experiment 2>.",
-    "Next": "Proceed to Complete if xx. Proceed to Stage2 if xxx"
+  "Stage ...": {
+    "Title": "Experiment ...",
+    "ExperimentDescription": "Conduct the <experiment name ...> with parameters <parameter list for experiment ...>.",
+    "Next": "Proceed to Complete if xx. Proceed to Stage ... if xxx"
     "Reference":'<The original input prompt related to this stage>'
   },
-  "Complete": {
-    "Title": "Completion",
-    "ExperimentDescription": "Conclude the experiment has succeeded.",
-    "Next": "None"
-  },
-  "Fail": {
-    "Title": "Failure",
-    "ExperimentDescription": "Conclude the experiment has failed.",
-    "Next": "None"
-  }
 }
-</output_example>"""
+</output_example>
+<Notice>
+Note: Divide the experiment into distinct stages, each representing a specific operation.
+Note: If multiple sets of parameters are used for the same experiment, they should be considered into different stages.
+Note: Do not include any additional information that is not present in the description, for example, you must not imagine the details how to implement each stages.
+Note: The description might mixes the action description and transition rules, you must separate them. You must not take a transition rule as a separate stage. 
+Note: The Next key must be a string detailing the transition conditions. Do not use "retry", "advance", or "revert", instead describe the stage label directly.
+Note: Generate as less stages as possible, ideally just one stage. However, you must make sure each stage is distinct and does not contain more than one experiment to carry out.
+</output_format>"""
 
 #This information will be distributed among various team members, who will carry out the tasks. Ensure that each instruction is clear and self-sufficient, enabling team members to execute their respective parts without needing additional context or clarification. Do not include objectives or goals in the description.
     completed_prompt = prompt
@@ -221,6 +214,17 @@ The NEXT key must be a string detailing the transition conditions. Do not use "r
     res = chat.complete(parse="dict", expensive=True, cache=True)
     stages = []
 
+    meta_stages = {  "Complete": {
+    "Title": "Completion",
+    "ExperimentDescription": "Conclude the experiment has succeeded.",
+    "Next": "None"
+  },
+  "Fail": {
+    "Title": "Failure",
+    "ExperimentDescription": "Conclude the experiment has failed.",
+    "Next": "None"
+  }}
+    res.update(meta_stages)
 
     # Add overview to each dict in res
     for stage_name, stage_content in res.items():

@@ -132,9 +132,6 @@ class Experiment:
 
         prompt = f"""
         Summarize the experiment results and report the key results. Indicate if the experiment was successful or failed.
-        If failed, suggest possible updates to the parameters or the experiment design if the experiment fails. The suggestion
-        needs to be specific on how much of the quantity needs to be changed on the parameters. Otherwise return None for the
-        parameter updates.
     
         <Run parameters>
         {arg_dict}

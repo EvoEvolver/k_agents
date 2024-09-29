@@ -115,9 +115,8 @@ You must use the following code_suggestions to generate the code:
 You are required to adopt code from one of <code_suggestion> that can be used to fill the slot in <code_to_complete>.
 - The adopted code should absolutely just be what should appear in the place of # [slot]. 
 - Some of the <code_suggestion> might be misleading. But you must pick the most relevant one.
-- code suggestions starting with AutoExperiment should be considered with priority.
 You should first output an analysis of which code suggestion should be used to fill the slot in <code_to_complete>.
-Then, wrapped by ```python and ```, output the new code that can fill the slot in <code_to_complete>. The last line of the generated code must be in the format: `experiment_<ExperimentName> = <ExperimentName>(argument1,argument2, ...)`. The code must be executable. No placeholders are allowed.
+Then, wrapped by ```python and ```, output the new code that can fill the slot in <code_to_complete>. The last line of the generated code must be in the format: `experiment_<ExperimentName> = <ExperimentName>(argument1,argument2, ...)`. The code must be executable. No placeholders are allowed. No import statements are allowed.
 </requirements>
         """
         chat = Chat(prompt)

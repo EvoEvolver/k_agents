@@ -103,7 +103,8 @@ class ExperimentCodegenIdea(EmbedIdea):
             available_variables = available_variables[0]
         prompt = f"""
 You are trying to call a experiment to fill the code_to_complete in Python. The description of the task is written in the slot.
-<experiment>{self.get_exp_description()}
+<experiment>
+{self.get_exp_description()}
 </experiment>
 <code_to_complete>
 # [slot: {instruction}]
@@ -113,10 +114,10 @@ You are trying to call a experiment to fill the code_to_complete in Python. The 
 </available_variables>
 <requirements>
 You should output a JSON dict. The keys should be
-- "evidence": Evidence that indicates the experiment is relevant to the task or not. The experiment should considered irrelevant if it contains extra keywords or irrelevant information.
-- "analysis" : The brief analysis of the relation between the experiment based on the evidence. You should notice that the code_to_complete might be irrelevant to the experiment. You should be careful not assume additional information.
+- "experiment_name_in_slot" (string): The name of the experiment in the slot.
+- "analysis" : The brief analysis of the relation between the experiment. You should notice that the code_to_complete might be irrelevant to the experiment. You should be careful not assume additional information. The experiment should considered irrelevant if it contains extra keywords or irrelevant information.
 - "applicable": A boolean whether the experiment you hold is suitable for implementing the task. 
-- "code": A code snippet that is helpful for filling the slot. The last line of the snippet must be in the format: `experiment_<name> = {self.exp_cls.__name__}(argument1,argument2, ...)`.
+- "code": A code snippet that is helpful for filling the slot. The last line of the snippet must be in the format: `experiment_<name> = {self.exp_cls.__name__}(argument1,argument2, ...)`. No import statements are needed.
 - "explanation": A detailed explanation of what the code snippet does based solely on the documentation.
 - "suitable": A boolean whether the code snippet matches the task based on the documentation.
 </requirements>

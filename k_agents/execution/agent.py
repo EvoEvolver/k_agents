@@ -1,3 +1,4 @@
+import html
 import json
 import pprint
 import warnings
@@ -15,8 +16,7 @@ from k_agents.execution.stage_execution import check_if_needed_to_break_down, St
     get_exp_from_var_table
 from k_agents.execution.stage_generation import get_stages_from_instruction, \
     stages_to_html
-from k_agents.execution.stage_transition import get_next_stage_label, \
-    generate_new_stage_description
+from k_agents.execution.stage_transition import get_next_stage_label
 from k_agents.translation.agent import get_codegen_wm
 from k_agents.translation.env import TranslationAgentEnv
 from k_agents.variable_table import VariableTable
@@ -219,8 +219,8 @@ def run_stage_description(stage: 'Stage', translation_agent, runtime_var_table,
     """
     spinner_id = show_spinner(f"Executing {stage.label}: {stage.title}...")
 
-    html = stages_to_html([stage])
-    display(HTML(html))
+    stage_html = stages_to_html([stage])
+    display(HTML(stage_html))
 
     if sub_experiment:
         single_step = True
@@ -257,8 +257,9 @@ def run_stage_description(stage: 'Stage', translation_agent, runtime_var_table,
 
     hide_spinner(spinner_id)
     code_html = code_to_html(codes)
-    display_chat("Execution agent (generating code)", 'light_purple',
-                 f"Here is the generated code:<br>{code_html}")
+    desc_in_prompt = html.escape(stage.description)
+    display_chat("Execution agent", 'light_purple',
+                 f"Here is the generated code for {desc_in_prompt}:<br>{code_html}")
     new_var_table.interpret(codes)
 
     exp_object = get_exp_from_var_table(new_var_table)

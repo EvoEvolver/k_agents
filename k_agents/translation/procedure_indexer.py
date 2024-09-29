@@ -11,6 +11,16 @@ from k_agents.memory.w_memory import WorkingMemory
 from k_agents.variable_table import VariableTable
 
 
+def get_experiment_name_for_procedure(title):
+    # filter all the non-alphanumeric characters
+    title = "".join([c for c in title if c.isalnum() or c == " "])
+    # split the title by space
+    title = title.split(" ")
+    # join the title with underscore
+    title = "_".join(title)
+    return title
+
+
 class ProcedureCodegenIdea(EmbedIdea):
     _n_procedure_ideas = 1
 
@@ -18,7 +28,7 @@ class ProcedureCodegenIdea(EmbedIdea):
         self.title = title
         self.steps = steps
         self.background = background
-        self.label = f"AutoExperiment_{self._n_procedure_ideas}"
+        self.label = f"Experiment_{get_experiment_name_for_procedure(title)}"
         ProcedureCodegenIdea._n_procedure_ideas += 1
         super().__init__(f"ProcedureCodegenIdea for {title}", embed_src)
 
@@ -125,7 +135,6 @@ def extract_text_after_section(section_tag):
     text = "".join([str(sibling) for sibling in siblings])
     text = markdownify(text, heading_style="ATX").strip()
     return text
-
 
 def imagine_applications_for_doc(title, background):
     prompt = f"""
