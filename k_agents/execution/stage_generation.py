@@ -6,6 +6,7 @@ from k_agents.execution.stage_execution import Stage
 import json
 import mllm
 
+
 def stages_to_html(stages_list):
     stages_dict = {stage.label: stage.to_dict() for stage in stages_list}
 
@@ -162,24 +163,23 @@ def get_stages_from_instruction(description: str) -> List[Stage]:
 <experiment_description>
 {description}
 </experiment_description>
-<requirements>
-Create a structured workflow for conducting a series of experiments. Each stage of the experiment should represent a distinct operation with explicit instructions and transition rules. The stages must be concise, self-contained, and clearly defined. 
-Especially, you are required to output a JSON dict with the following elements:
+<objective>
+Your objective is to create a structured workflow for conducting a series of experiments. Each stage of the experiment should represent a distinct operation with explicit instructions and transition rules. The stages must be concise, self-contained, and clearly defined. Especially, you are required to output a JSON dict with the following elements:
 </requirements>
-<output>
+<output_format>
 
-The JSON dict should contains keys for each stage of the experiment. The key should be the title of the stage. The value should be a dict containing the following keys:
+You should output a JSON dict containing keys for each stage of the experiment. The key should be the label of the stage. The value should be a dict containing the following keys:
 
-- Title: Provide a descriptive title for the stage.
+- Title: a descriptive title for the stage.
 
-- ExperimentDescription: Provide a procedural outline for each stage of the experiment. The description should explicitly state the name of the experiment, list all parameters involved, and clearly outline the steps to be taken. You should not mention how the experiment will be executed.
+- ExperimentDescription: a procedural outline for each stage of the experiment. The description should explicitly state the name of the experiment, list all parameters involved, and clearly outline the step to be taken. You should not mention how the experiment will be executed.
 
--Next:
+- Next: a description of the transition rules to proceed to the next stage based on the results of the experiment. This should be a clear and concise instruction on how to advance to the next stage.
 Note: By default, always proceed to the next stage when the experiment succeeded.
 Note: When there are additional descriptions about how to transition to the next stage based on the results of the experiment, include them in the transition rules.
 
-- Reference: The original <experiment_description> related to each stage for reference and context.
-</output>
+- Reference: The original part of <experiment_description> that is related to your experiment description.
+</output_format>
 """ + """
 <output_example>
 {
@@ -198,32 +198,33 @@ Note: When there are additional descriptions about how to transition to the next
 }
 </output_example>
 <Notice>
-Note: Divide the experiment into distinct stages, each representing a specific operation.
-Note: If multiple sets of parameters are used for the same experiment, they should be considered into different stages.
-Note: Do not include any additional information that is not present in the description, for example, you must not imagine the details how to implement each stages.
-Note: The description might mixes the action description and transition rules, you must separate them. You must not take a transition rule as a separate stage. 
-Note: The Next key must be a string detailing the transition conditions. Do not use "retry", "advance", or "revert", instead describe the stage label directly.
-Note: Generate as less stages as possible, ideally just one stage. However, you must make sure each stage is distinct and does not contain more than one experiment to carry out.
-</output_format>"""
+- You should divide the experiment into distinct stages, each representing a specific operation.
+- Do not include any additional information that is not present in the description, for example, you must not imagine the details how to implement each stages.
+- The description might mixes the action description and transition rules, you must separate them. You must not take a transition rule as a separate stage. 
+- The Next key must be a string detailing the transition conditions. Do not use "retry", "advance", or "revert", instead describe the stage label directly.
+- Generate as less stages as possible, ideally just one stage. However, you must make sure each stage is distinct and does not contain more than one experiment to carry out.
+</Notice>
+"""
 
-    #This information will be distributed among various team members, who will carry out the tasks. Ensure that each instruction is clear and self-sufficient, enabling team members to execute their respective parts without needing additional context or clarification. Do not include objectives or goals in the description.
     completed_prompt = prompt
 
     chat = mllm.Chat(completed_prompt,
-                     "You are a very smart and helpful assistant who only reply in JSON dict")
+                     "You are a very smart and helpful assistant who only reply in JSON dict", dedent=True)
     res = chat.complete(parse="dict", expensive=True, cache=True)
     stages = []
 
-    meta_stages = {"Complete": {
-        "Title": "Completion",
-        "ExperimentDescription": "Conclude the experiment has succeeded.",
-        "Next": "None"
-    },
+    meta_stages = {
+        "Complete": {
+            "Title": "Completion",
+            "ExperimentDescription": "Conclude the experiment has succeeded.",
+            "Next": "None"
+        },
         "Fail": {
             "Title": "Failure",
             "ExperimentDescription": "Conclude the experiment has failed.",
             "Next": "None"
-        }}
+        }
+    }
     res.update(meta_stages)
 
     # Add overview to each dict in res
@@ -295,7 +296,7 @@ def find_the_stage_label_based_on_description(stages: List[Stage], description: 
     """
 
     chat = mllm.Chat(prompt,
-                     "You are a very smart and helpful assistant who only reply in JSON dict")
+                     "You are a very smart and helpful assistant who only reply in JSON dict", dedent=True)
     res = chat.complete(parse="dict", expensive=True, cache=True)
 
     for stage in stages:
@@ -341,4 +342,5 @@ After successfully calibrating the Rabi frequency, we proceed to Pingpong amplit
 
     description = description_rabi
     stages = get_stages_from_instruction(description)
-    print(stages)
+    for stage in stages:
+        print(stage.to_dict())

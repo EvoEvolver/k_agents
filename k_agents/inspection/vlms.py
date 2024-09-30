@@ -68,7 +68,7 @@ def prepare_visual_inspection_chat(raw_prompt, func_file_path):
     if len(parts) > len(image_matches):
         merged_parts.append(parts[-1])
 
-    chat = Chat()
+    chat = Chat(dedent=True)
     for part in merged_parts:
         if isinstance(part, str):
             trimmed = part.strip()
