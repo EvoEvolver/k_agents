@@ -42,8 +42,7 @@ def run_visual_inspection(image: "Image", prompt: str, func_file_path, rescale=0
 
     chat = prepare_visual_inspection_chat(prompt, func_file_path)
     chat.system_message = ("You are a helpful visual assistant that able to provide analysis on images or plots. "
-                       "Please return your message in a json format with keys analysis(str, single paragraph) "
-                       "and 'success'(boolean)")
+                       "Please return your message in a JSON dict with keys: 'analysis'(str, single paragraph) and 'success'(boolean, indicating whether the experiment is successful).")
     chat.add_user_message("Here is the input image:")
     chat.add_image_message(image)
     res = chat.complete(parse="dict", cache=True, **kwargs)
