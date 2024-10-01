@@ -44,7 +44,7 @@ class VisualInspectionAgent(InspectionAgent):
         self.calling_path = calling_path
 
     def run(self, exp: Experiment):
-        spinner_id = show_spinner(f"Vision AI is inspecting the plots...")
+        spinner_id = show_spinner(f"Inspection agent reading the plot...")
         figure_obj = self.plot_func(exp)
         image = matplotlib_plotly_to_pil(figure_obj)
         inspect_answer = run_visual_inspection(image, self.prompt, self.calling_path)

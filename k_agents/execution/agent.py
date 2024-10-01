@@ -104,7 +104,6 @@ class ExecutionAgent:
         self.history_experiments = []
 
         for step in range(len(self.stages) * self.max_step_per_stage):
-            curr_stage.n_failed += 1
             exp_object = run_stage_description(curr_stage, self.translation_agent,
                                                runtime_var_table, exp_inputs_table,
                                                coding_ltm_cache,
