@@ -99,8 +99,12 @@ def matplotlib_plotly_to_pil(fig: Union[go.Figure, plt.Figure]):
         else:
             engine = "kaleido"
         fig.write_image(buf,format='png',engine=engine)
+        # close the figure and release the memory
+
     elif isinstance(fig, plt.Figure):
         fig.savefig(buf, format='png')
+        # close the figure and release the memory
+        plt.close(fig)
     else:
         raise ValueError(f"The input must be a Matplotlib or Plotly figure. Got {type(fig)}.")
 
