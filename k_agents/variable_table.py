@@ -293,7 +293,7 @@ def get_truncated_repr(obj: object, limit: int = 30) -> Tuple[str, str]:
         Tuple[str, str]: A tuple containing the truncated string representation and the class name of the object.
     """
     classname = obj.__class__.__name__
-    repr_str = repr(obj)
+    repr_str = f"repr({repr(obj)})"
     if len(repr_str) > limit:
         repr_str = repr_str[:limit] + "..." + repr_str[-1:]
     return repr_str, classname
