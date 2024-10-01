@@ -27,6 +27,8 @@ class TextInspectionAgent(InspectionAgent):
         if isinstance(res, str):
             res = {self.func.__name__: res}
         color = "light_blue"
+        if 'success' in res:
+            color = 'light_green' if res['success'] else 'light_red'
         html = dict_to_html(res)
         display_chat(agent_name=f"Inspection Agent",
                      content='<br>' + html,
