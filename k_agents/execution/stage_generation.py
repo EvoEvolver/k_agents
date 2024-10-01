@@ -195,6 +195,8 @@ Note: When there are additional descriptions about how to transition to the next
     "Next": "Proceed to Complete if xx. Proceed to Stage ... if xxx"
     "Reference":'<The original input prompt related to this stage>'
   },
+  "Complete": {},
+  "Fail": {}
 }
 </output_example>
 <Notice>
