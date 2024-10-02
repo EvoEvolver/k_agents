@@ -164,7 +164,7 @@ def get_stages_from_instruction(description: str) -> List[Stage]:
 {description}
 </experiment_description>
 <objective>
-Your objective is to create a structured workflow for conducting a series of experiments. Each stage of the experiment should represent a distinct operation with explicit instructions and transition rules. The stages must be concise, self-contained, and clearly defined. Especially, you are required to output a JSON dict with the following elements:
+Your objective is to divide the experimental description into stages. Each stage of the experiment should represent a distinct operation with explicit instructions and transition rules. The stages must be concise, self-contained, and clearly defined. Especially, you are required to output a JSON dict with the following elements:
 </requirements>
 <output_format>
 
@@ -200,11 +200,12 @@ Note: When there are additional descriptions about how to transition to the next
 }
 </output_example>
 <Notice>
-- You should divide the experiment into distinct stages, each representing a specific operation.
-- Do not include any additional information that is not present in the description, for example, you must not imagine the details how to implement each stages.
+- You should divide the description into distinct stages, each representing a specific operation.
+- Do not include any additional information that is not present in the description. You must not imagine the details how to implement each stages.
 - The description might mixes the action description and transition rules, you must separate them. You must not take a transition rule as a separate stage. 
-- The Next key must be a string detailing the transition conditions. Do not use "retry", "advance", or "revert", instead describe the stage label directly.
+- The Next key must be a string detailing the transition conditions. Do not use "retry", or "revert", instead describe the stage label directly.
 - Generate as less stages as possible, ideally just one stage. However, you must make sure each stage is distinct and does not contain more than one experiment to carry out.
+- If the description is very short, you must not adding extra information beyond the original description.
 </Notice>
 """
 

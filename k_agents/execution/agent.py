@@ -95,7 +95,7 @@ class ExecutionAgent:
         Returns
         -------
         """
-        assert self.stages is not None, "Stages have not been generated. Rub self.generate_stages first."
+        assert self.stages is not None, "Stages have not been generated. Run self.generate_stages first."
         exp_inputs_table, runtime_var_table = make_var_table(self.translation_var_table,
                                                              variables)
         coding_ltm_cache = {}
@@ -104,15 +104,19 @@ class ExecutionAgent:
         self.history_experiments = []
 
         for step in range(len(self.stages) * self.max_step_per_stage):
-            exp_object = run_stage_description(curr_stage, self.translation_agent,
-                                               runtime_var_table, exp_inputs_table,
-                                               coding_ltm_cache,
-                                               True)
+            for i in range(3):
+                exp_object, err = run_stage_description(curr_stage, self.translation_agent,
+                                                   runtime_var_table, exp_inputs_table,
+                                                   coding_ltm_cache,
+                                                   True)
 
-            if exp_object is None:
-                warnings.warn(f"Experiment object not found in the variable table.")
-                # re-run the stage
-                continue
+                if exp_object is None or err:
+                    agent_message_box(
+                        f"Failed to translate \"{curr_stage.description}\". Retrying...({i + 1}/3)",
+                        color='light_red')
+                break
+            else:
+                assert False, f"Failed to run the stage {curr_stage.label} after 3 attempts."
 
             inspection_result = exp_object.get_ai_inspection_summary()
 
@@ -259,11 +263,22 @@ def run_stage_description(stage: 'Stage', translation_agent, runtime_var_table,
     desc_in_prompt = html.escape(stage.description)
     display_chat("Execution agent", 'light_purple',
                  f"Here is the generated code for {desc_in_prompt}:<br>{code_html}")
-    new_var_table.interpret(codes)
+    err = False
+    try:
+        new_var_table.interpret(codes)
+    except Exception as e:
+        # get stack trace
+        import traceback
+        traceback.print_exc()
+        exception_html = html.escape(traceback.format_exc())
+        display_chat("Execution agent", 'light_red',
+                     f"Error occurred when interpreting the code:<br>{exception_html}")
+        err = True
+        return None
 
     exp_object = get_exp_from_var_table(new_var_table)
 
-    return exp_object
+    return exp_object, err
 
 
 class AutomatedExperiment(Experiment):

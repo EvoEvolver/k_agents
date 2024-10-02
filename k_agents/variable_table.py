@@ -8,13 +8,22 @@ import numpy
 from asteval import Interpreter
 
 
-def empty_interpreter() -> Interpreter:
+class MyInterpreter:
+
+    def __init__(self):
+        self.symtable = {}
+
+    def __call__(self, code: str):
+        exec(code, self.symtable)
+
+def empty_interpreter():
     """Create a new asteval interpreter instance with restricted numpy use and extended import capabilities.
 
     Returns:
         Interpreter: A new asteval.Interpreter instance configured without numpy and with import capabilities.
     """
-    return Interpreter(use_numpy=False, config={'import': True, 'importfrom': True})
+    #return Interpreter(use_numpy=False, config={'import': True, 'importfrom': True})
+    return MyInterpreter()
 
 
 class VariableTable:
@@ -135,11 +144,6 @@ class VariableTable:
         interpreter(code)
         if assign_back:
             self.assign_back(interpreter)
-        # check errors
-        if len(interpreter.error) > 0:
-            error_details = [f"{err.get_error()} \n" for err in interpreter.error]
-            error_str = "\n".join(error_details)
-            warnings.warn(f"Error raised when interpreting: {code} \n Error detail: {error_str}")
 
     def assign_back(self, interpreter: Interpreter):
         """Update the variable table with new or modified variables from the interpreter.
