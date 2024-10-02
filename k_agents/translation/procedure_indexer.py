@@ -38,17 +38,20 @@ class ProcedureCodegenIdea(EmbedIdea):
 
     def run_idea(self, w_memory: WorkingMemory) -> IdeaResult:
         instruction = w_memory.extract_tag_contents("instruction")[0]
-        available_variables = w_memory.extract_tag_items("available_variables")
+        available_variables = w_memory.extract_tag_contents("available_variables")
         if len(available_variables) == 0:
-            var_table = VariableTable()
+            available_variables = "There is no available variables"
         else:
             available_variables = available_variables[0]
-            var_table = available_variables.attrs["_table_obj"]
         prompt = f"""
 You are trying to rewrite the following instruction based on your knowledge to suit more general parameters.
 <input_instruction>
 {instruction}
 </input_instruction>
+The following variables names are defined in the context and you can directly use the variables names.
+<available_variables>
+{available_variables}
+</available_variables>
 By your knowledge, there is an existing instruction that is available
 <knowledge>
 <instruction>
@@ -62,8 +65,9 @@ You are required to output a JSON dict with the following keys
 - "parameter_specification" (string): The specification of the parameters of the input_instruction 
 - "analysis" (string): An analysis of the relation between the input_instruction and your knowledge. You should notice that your knowledge is likely to be improper if the experiment name contains different keywords. However, the parameter_specification of the experiment can be different.
 - "proper" (bool): Whether the input_instruction can be regarded as a proper instance of the experiment in your knowledge.
-- "rewrote_instruction" (string, nullable): The input_instruction rewritten in a way based on the instruction in your knowledge. You should not change the parameter specification of the input_instruction.
-- "annotation" (string, nullable): A concise annotation that describe how you are confident that the rewrote_instruction is correct.
+- "rewrote_instruction" (string): The input_instruction rewritten in a way based on the instruction in your knowledge. You should not change the parameter specification of the input_instruction.
+- "parameter_mapping" (dict): A mapping from the parameters in the input_instruction to the parameters in the rewrote_instruction. The keys should be the parameters in the rewrote_instruction and the values should be the parameters in the input_instruction or the value from the description.
+- "annotation" (string): A concise annotation that describe how you are confident that the rewrote_instruction is correct.
 </requirements>
 """
         chat = Chat(prompt)
@@ -71,10 +75,13 @@ You are required to output a JSON dict with the following keys
         if not res["proper"]:
             return IdeaResult(self, False)
         arg_in_code = []
-        for arg in var_table.variable_objs:
-            arg_in_code.append(f", {arg}={arg}")
+        for key, value in res["parameter_mapping"].items():
+            arg_in_code.append(f", {key}={value}")
         arg_in_code = "".join(arg_in_code)
-        annotation_in_prompt = res["annotation"].replace("\n", "\n# ")
+        if "annotation" in res and res["annotation"] is not None:
+            annotation_in_prompt = res["annotation"].replace("\n", "\n# ")
+        else:
+            annotation_in_prompt = ""
         code_suggestion = f'''
 experiment_instance = {self.label}(instruction="""{res["rewrote_instruction"]}""" {arg_in_code})  
 # {annotation_in_prompt}      

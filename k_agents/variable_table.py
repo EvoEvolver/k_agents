@@ -213,6 +213,14 @@ class VariableTable:
         self.variable_objs.update(other_table.variable_objs)
         self.variable_docs.update(other_table.variable_docs)
 
+    def update_by_dict(self, var_dict: dict):
+        """Update the current table's variables and documentation by merging a dictionary of variables.
+
+        Args:
+            var_dict (dict): A dictionary of variable names to objects.
+        """
+        self.variable_objs.update(var_dict)
+
     def add_parent_table(self, parent_table: VariableTable):
         """Add a parent variable table to enable variable resolution in nested contexts.
 

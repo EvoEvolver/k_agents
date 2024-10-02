@@ -165,7 +165,7 @@ def get_codegen_wm(description: str, var_table: VariableTable) -> WorkingMemory:
 
     wm = WorkingMemory()
     if not var_table.is_empty():
-        var_table_in_prompt = var_table.get_local_prompt()
+        var_table_in_prompt = get_var_table_prompt(var_table)
         var_table_item = WMemoryItem(var_table_in_prompt, "available_variables")
         var_table_item.set_no_prompt()
         var_table_item.attrs["_table_obj"] = var_table
@@ -173,6 +173,15 @@ def get_codegen_wm(description: str, var_table: VariableTable) -> WorkingMemory:
     wm.add_item(WMemoryItem(description, tag="instruction"))
     return wm
 
+
+def get_var_table_prompt(var_table: VariableTable) -> str:
+    lines = []
+    for name, obj in var_table.variable_objs.items():
+        if isinstance(obj, (int, float, str, bool)):
+            lines.append(f"- VariableName: {name}: {obj}")
+        else:
+            lines.append(f"- VariableName: {name}: {type(obj)}")
+    return "\n".join(lines)
 
 def init_translation_agent(module, document_folder: str = None):
     """

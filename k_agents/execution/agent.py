@@ -8,6 +8,7 @@ import numpy
 from IPython.core.display import display, HTML
 from mllm import Chat
 
+from k_agents.execution.stage_generation_2 import generate_stages
 from k_agents.experiment.experiment import Experiment
 from k_agents.notebook_utils import display_chat, code_to_html, dict_to_html
 from k_agents.notebook_utils import show_spinner, hide_spinner
@@ -16,7 +17,8 @@ from k_agents.execution.stage_execution import check_if_needed_to_break_down, St
     get_exp_from_var_table
 from k_agents.execution.stage_generation import get_stages_from_instruction, \
     stages_to_html
-from k_agents.execution.stage_transition import get_next_stage_label
+from k_agents.execution.stage_transition import get_next_stage_label, \
+    generate_parameter_patch
 from k_agents.translation.agent import get_codegen_wm
 from k_agents.translation.env import TranslationAgentEnv
 from k_agents.variable_table import VariableTable
@@ -75,7 +77,7 @@ class ExecutionAgent:
             The generated stages.
         """
         spinner_id = show_spinner("Generating state machine...")
-        self.stages = get_stages_from_instruction(steps)
+        self.stages = generate_stages(steps)
         hide_spinner(spinner_id)
         agent_message_box(
             "The planned experiments are:<br>" + stages_to_html(self.stages),
@@ -114,6 +116,7 @@ class ExecutionAgent:
                     agent_message_box(
                         f"Failed to translate \"{curr_stage.description}\". Retrying...({i + 1}/3)",
                         color='light_red')
+                    continue
                 break
             else:
                 assert False, f"Failed to run the stage {curr_stage.label} after 3 attempts."
@@ -144,9 +147,8 @@ class ExecutionAgent:
             next_stage = find_next_stage(self.stages, next_stage_label)
 
             if curr_stage.label in next_stage.label:
-                #new_description = generate_new_stage_description(next_stage)
-                #next_stage.description = new_description
-                ...
+                new_parameters = generate_parameter_patch(next_stage)
+                next_stage.var_table.update_by_dict(new_parameters)
 
             hide_spinner(spinner_id)
 
@@ -240,11 +242,14 @@ def run_stage_description(stage: 'Stage', translation_agent, runtime_var_table,
         new_var_table = runtime_var_table.new_child_table()
         new_var_table.add_variable("exp", exp)
 
-        return new_var_table
+        return exp, False
 
     prompt_table = VariableTable()
     prompt_table.update_by_other_table(runtime_var_table)
     prompt_table.update_by_other_table(exp_inputs_table)
+    for key, value in stage.var_table.variable_objs.items():
+        if value is not None:
+            prompt_table.add_variable(key, value)
     codegen_wm = get_codegen_wm(stage.description, prompt_table)
 
     if stage.title not in coding_ltm_cache:
@@ -257,6 +262,9 @@ def run_stage_description(stage: 'Stage', translation_agent, runtime_var_table,
     codes = translation_agent.codegen(codegen_wm, recall_res)
 
     new_var_table = runtime_var_table.new_child_table()
+    for key, value in stage.var_table.variable_objs.items():
+        if value is not None:
+            new_var_table.add_variable(key, value)
 
     hide_spinner(spinner_id)
     code_html = code_to_html(codes)
@@ -274,7 +282,7 @@ def run_stage_description(stage: 'Stage', translation_agent, runtime_var_table,
         display_chat("Execution agent", 'light_red',
                      f"Error occurred when interpreting the code:<br>{exception_html}")
         err = True
-        return None
+        return None, True
 
     exp_object = get_exp_from_var_table(new_var_table)
 

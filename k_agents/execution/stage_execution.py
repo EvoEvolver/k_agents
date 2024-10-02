@@ -13,7 +13,7 @@ class Stage:
         self.label = label  # Unique identifier for the stage
         self.description = description  # Description of what happens in this stage
         self.next_stage_guide = next_stage_guide  # Guidance for transitioning to the next stage
-        self.var_table = None  # Variable table specific to this stage, initialized later
+        self.var_table: VariableTable = VariableTable()  # Variable table specific to this stage, initialized later
         self.n_failed = 0  # Number of times the stage has been executed
 
     def to_dict(self) -> dict:
@@ -23,6 +23,7 @@ class Stage:
             "Title": self.title,
             "ExperimentDescription": self.description,
             "Next": self.next_stage_guide,
+            "Variables": self.var_table.get_prompt(no_doc=True)
         }
 
     def to_xml(self) -> str:

@@ -7,7 +7,7 @@ import json
 import mllm
 
 
-def stages_to_html(stages_list):
+def stages_to_html(stages_list: List[Stage]):
     stages_dict = {stage.label: stage.to_dict() for stage in stages_list}
 
     html_content = '<div style="font-family: Arial, sans-serif;">'
@@ -18,12 +18,18 @@ def stages_to_html(stages_list):
         if stage_key in ["Complete", "Fail"]:
             continue
 
+        if stage_info['Variables'].strip() == "":
+            variables = ""
+        else:
+            variables = f"<p><strong>Variables:</strong> <pre>{stage_info['Variables']}</pre></p>"
+
         # Adding HTML content for each stage
         html_content += f'''
             <div style="margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
                 <h3>{stage_info['Title']}</h3>
                 <p><strong>Description:</strong> {stage_info['ExperimentDescription']}</p>
                 <p><strong>Next Steps:</strong> {stage_info['Next']}</p>
+                {variables}
             </div>
         '''
 
@@ -279,22 +285,29 @@ def find_the_stage_label_based_on_description(stages: List[Stage], description: 
     return (Stage): The stage.
     """
 
-    stages_info = '\n'.join([stage.to_xml() for stage in stages])
+    stages_info_lines = []
+    for stage in stages:
+        stages_info_lines.append(f"- {stage.label}")
+    stages_info_lines.append("- Complete")
+    stages_info_lines.append("- Fail")
+    stages_info = "\n".join(stages_info_lines)
 
     prompt = f"""
     You have a list of stages for an experiment. Your task is to find the stage label based on the description provided.
 
+    <description>
+    {description}
+    </description>
+    
+    Available stages:
     <stages>
     {stages_info}
     </stages>
 
-    <description>
-    {description}
-    </description>
-
     Return format:
         {{
-            "stage_label": str
+        “analysis”: str,
+        "stage_label": str
         }}
     """
 
@@ -303,7 +316,7 @@ def find_the_stage_label_based_on_description(stages: List[Stage], description: 
     res = chat.complete(parse="dict", expensive=True, cache=True)
 
     for stage in stages:
-        if res['stage_label'] in stage.label:
+        if res['stage_label'] in stage.label or stage.label in res['stage_label']:
             return stage
 
 

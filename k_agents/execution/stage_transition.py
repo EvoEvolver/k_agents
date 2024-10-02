@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import json
 from typing import TYPE_CHECKING
 
 import mllm
@@ -7,16 +9,14 @@ if TYPE_CHECKING:
     from .stage_execution import Stage
 
 
-def generate_new_stage_description(stage_jumped_to: Stage) -> str:
-    """
-    Generate a new stage of the stage jumped to and additional information provided.
+def generate_parameter_patch(stage_jumped_to: Stage) -> dict:
 
-    Parameters:
-        stage_jumped_to (Stage): The stage that was jumped to.
+    variables_in_prompt = {}
+    for var_name, var_obj in stage_jumped_to.var_table.variable_objs.items():
+        # if the var_obj is a number, str, or bool, we can just use it as is
+        if isinstance(var_obj, (int, float, str, bool)):
+            variables_in_prompt[var_name] = var_obj
 
-    Returns:
-        new_description (str): The new description of the stage.
-    """
 
     prompt = f"""
     Based on the information provided, you have transitioned to a new stage, identified as {stage_jumped_to.label}.
@@ -25,28 +25,28 @@ def generate_new_stage_description(stage_jumped_to: Stage) -> str:
     <description>
     {stage_jumped_to.description}
     <description>
+    The current stage is using the following parameters:
+    <parameters>
+    {json.dumps(variables_in_prompt, indent=1)}
+    </parameters>
     
-    Using the details provided, write an updated description for this stage. Furthermore, if there are instructions in the
-    additional information to adjust certain parameters, select specific values for each parameter as requested and justify
-    these choices based on the analysis provided. Include your analysis only in the analysis field and aim for conciseness
-    and clarity in your revised description. Do not include the objective into the description.
-    
-    Example of the description:
-    "Conduct the <experiment name> with parameters <parameter list for experiment>."
-    
-    Follow the example exactly and do not include any additional information in the description.
+    Using the details provided, whether you need to updated parameters for this stage. 
+    If so, provide how to update the parameters.
     
     Response in JSON with the following keys:
-    "analysis" (string):  your thought process for updating the stage description.
-    "new_description" (string):  the updated description of the stage here.
+    "analysis" (string): an analysis about whether the parameters need to be updated and how to update them if needed.
+    "to_update" (bool): whether the parameters need to be updated.
+    "parameter_patch" (dict):  a dict that describes how to update the parameters. The keys should be the variable names and the values should be the new values. If a parameter is not updated, it should not be included in the dict.
     """
 
     chat = mllm.Chat(prompt, dedent=True)
     res = chat.complete(parse="dict", expensive=True, cache=True)
 
-    new_description = res["new_description"]
-
-    return new_description
+    to_update = res["to_update"]
+    if not to_update:
+        return {}
+    parameter_patch = res["parameter_patch"]
+    return parameter_patch
 
 
 def get_next_stage_label(current_stage: Stage, experiment_result: dict[str, str]) -> dict[str, str]:
@@ -74,8 +74,7 @@ def get_next_stage_label(current_stage: Stage, experiment_result: dict[str, str]
         result_prompt += f"{key}: {value}\n\n"
 
     prompt = f"""
-    You are operating a state machine and the current stage has produced some results. 
-    You must analyze these results and use the rule of transition to determine the next stage of the machine.
+    You are analyzing experiment result from current stage and use the rule of transition to determine the next stage of the experiment.
     
     <current_stage>
     {current_stage.label}:{current_stage.description}
@@ -85,16 +84,16 @@ def get_next_stage_label(current_stage: Stage, experiment_result: dict[str, str]
 
     prompt += f"""
     </current_stage>
-    
-    <rule_of_transition>
-    {rules}
-    </rule_of_transition>
-    
+   
     Here are the results from the experiments. Note that results must be consistent to indicate the validity. 
     Otherwise they are both invalid.
     <experiment_reports>
     {result_prompt}
     </experiment_reports>
+    
+    <rule_of_transition>
+    {rules}
+    </rule_of_transition>
     
     <requirements>
     Return your decision in JSON format With the following keys:
