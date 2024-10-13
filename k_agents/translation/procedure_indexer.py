@@ -65,7 +65,7 @@ You are required to output a JSON dict with the following keys
 - "parameter_specification" (string): The specification of the parameters of the input_instruction 
 - "analysis" (string): An analysis of the relation between the input_instruction and your knowledge. You should notice that your knowledge is likely to be improper if the experiment name contains different keywords. However, the parameter_specification of the experiment can be different.
 - "proper" (bool): Whether the input_instruction can be regarded as a proper instance of the experiment in your knowledge.
-- "rewrote_instruction" (string): The input_instruction rewritten in a way based on the instruction in your knowledge. You should not change the parameter specification of the input_instruction.
+- "rewritten_instruction" (string): The input_instruction rewritten in a way based on the instruction in your knowledge. You should not change the parameter specification of the input_instruction.
 - "parameter_mapping" (dict): A mapping from the parameters in the input_instruction to the parameters in the rewrote_instruction. The keys should be the parameters in the rewrote_instruction and the values should be the parameters in the input_instruction or the value from the description.
 - "annotation" (string): A concise annotation that describe how you are confident that the rewrote_instruction is correct.
 </requirements>

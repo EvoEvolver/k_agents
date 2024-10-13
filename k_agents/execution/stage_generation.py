@@ -14,8 +14,8 @@ def stages_to_html(stages_list: List[Stage]):
 
     # Loop through each stage in the dictionary
     for stage_key, stage_info in stages_dict.items():
-        # Skip "Complete" and "Fail" stages
-        if stage_key in ["Complete", "Fail"]:
+        # Skip "Complete" and "Failed" stages
+        if stage_key in ["Complete", "Failed"]:
             continue
 
         if stage_info['Variables'].strip() == "":
@@ -48,7 +48,7 @@ You have created a list of stages for an experiment. Your task is to modify this
 - Identify and remove any stages that are marked with 'contains_experiment=False'. Assume these stages are successful by default.
 - For the remaining stages, update the rule for transitioning to the next stage based on the results of the experiment.
 - Keep the rest information of each stage unchanged, return in the same format as the input.
-- Keep the 'Complete' and 'Fail' stages as the final stages of the experiment.
+- Keep the 'Complete' and 'Failed' stages as the final stages of the experiment.
 
 This process ensures that the list reflects only the stages actively involved in the experiment and adjusts the workflow according to experimental outcomes.
 
@@ -143,7 +143,7 @@ def _get_stage_from_agent_response(stage_info: tuple) -> dict:
 
     stage_name, stage_content = stage_info
 
-    if stage_name in ["Complete", "Fail"]:
+    if stage_name in ["Complete", "Failed"]:
         refined_content = stage_content
     else:
         refined_content = refine_stage_description(stage_content)
@@ -202,7 +202,7 @@ Note: When there are additional descriptions about how to transition to the next
     "Reference":'<The original input prompt related to this stage>'
   },
   "Complete": {},
-  "Fail": {}
+  "Failed": {}
 }
 </output_example>
 <Notice>
@@ -228,7 +228,7 @@ Note: When there are additional descriptions about how to transition to the next
             "ExperimentDescription": "Conclude the experiment has succeeded.",
             "Next": "None"
         },
-        "Fail": {
+        "Failed": {
             "Title": "Failure",
             "ExperimentDescription": "Conclude the experiment has failed.",
             "Next": "None"
@@ -246,7 +246,7 @@ Note: When there are additional descriptions about how to transition to the next
 
     # Check if there is any stage marked as contains_experiment=False
     has_stage_need_to_remove = len([stage for stage in stages_info if
-                                    stage['label'] not in ['Complete', 'Fail'] and not
+                                    stage['label'] not in ['Complete', 'Failed'] and not
                                     stage['contains_experiment']]) > 0
 
     if has_stage_need_to_remove:
@@ -260,7 +260,7 @@ Note: When there are additional descriptions about how to transition to the next
 
     # for stage_name, stage_content in res.items():
 
-    #    if stage_name in ["Complete", "Fail"]:
+    #    if stage_name in ["Complete", "Failed"]:
     #        refined_content = stage_content
     #    else:
     #        refined_content = refine_stage_description(stage_content)
@@ -289,7 +289,7 @@ def find_the_stage_label_based_on_description(stages: List[Stage], description: 
     for stage in stages:
         stages_info_lines.append(f"- {stage.label}")
     stages_info_lines.append("- Complete")
-    stages_info_lines.append("- Fail")
+    stages_info_lines.append("- Failed")
     stages_info = "\n".join(stages_info_lines)
 
     prompt = f"""

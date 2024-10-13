@@ -140,7 +140,7 @@ class ExecutionAgent:
             next_stage_info = get_next_stage_label(curr_stage, inspection_result)
             next_stage_label = next_stage_info["next"]
 
-            if next_stage_label in ["Complete", "Fail"]:
+            if next_stage_label in ["Complete", "Failed"]:
                 hide_spinner(spinner_id)
                 break
 
@@ -164,7 +164,7 @@ class ExecutionAgent:
             agent_message_box(
                 "The experiment is complete.<br>" + f"{next_stage_info['analysis']}",
                 color='light_green')
-        elif next_stage_label == "Fail":
+        elif next_stage_label == "Failed":
             agent_message_box(
                 "The experiment has failed.<br>" + f"{next_stage_info['analysis']}",
                 color='light_red')
@@ -413,14 +413,14 @@ def AutoRun(instruction, **kwargs):
     return exp
 
 
-def execute_experiment_from_prompt(prompt: str, **kwargs):
+def execute_experiment_from_instruction(instruction: str, **kwargs):
     """
     Execute an experiment from a prompt.
 
     Parameters
     ----------
-    prompt: str
-        The prompt to run the experiment.
+    instruction: str
+        The instruction to run the experiment.
     kwargs
         Additional keyword arguments.
 
@@ -441,7 +441,7 @@ def execute_experiment_from_prompt(prompt: str, **kwargs):
     var_table.add_parent_table(translation_var_table)
     var_table.add_parent_table(input_var_table)
 
-    codegen_wm = get_codegen_wm(prompt, input_var_table)
+    codegen_wm = get_codegen_wm(instruction, input_var_table)
 
     recall_res = translation_agent.recall(codegen_wm)
     codes = translation_agent.codegen(codegen_wm, recall_res)

@@ -23,16 +23,16 @@ def imagine_applications(exp_name, exp_docs) -> List[str]:
     doc_string = exp_docs
     # Construct the prompt for the Chat model
     prompt = f"""
-You are trying to produce imperative sentences that would invoke the execution of experiment `{exp_name}` based on its documentation.
+You are trying to produce imperative sentences that would invoke the execution of action `{exp_name}` based on its documentation.
 <docstring>
 {doc_string}
 </docstring>
 <example>
 Here are a few of examples of imperative sentences:
-- Run the calibration experiment with duts=duts and start=0.0
-- Calibrate `duts` 
-- Please execute the CrossAllXYDragMultiSingleQubitMultilevel experiment
-- Do the AllXY drag experiment.
+- Run the calibration experiment with duts=`duts` and start=0.0
+- Carry out a calibration on `duts` 
+- Please execute the Ramsey experiment
+- Do the Drag experiment.
 </example>
 <instruction>
 You should output a JSON dict. The keys should be string of indices of the sentences and the values should be the sentences. 
@@ -114,7 +114,7 @@ You are trying to call a experiment to fill the code_to_complete in Python. The 
 </available_variables>
 <requirements>
 You should output a JSON dict. The keys should be
-- "experiment_name_in_slot" (string): The name of the experiment in the slot.
+- "experiment_name_in_slot" (string): The name of the experiment extracted from the slot.
 - "analysis" : The brief analysis of the relation between the experiment. You should notice that the code_to_complete might be irrelevant to the experiment. You should be careful not assume additional information. The experiment should considered irrelevant if it contains extra keywords or irrelevant information.
 - "applicable": A boolean whether the experiment you hold is suitable for implementing the task. 
 - "code": A code snippet that is helpful for filling the slot. The last line of the snippet must be in the format: `experiment_<name> = {self.exp_cls.__name__}(argument1,argument2, ...)`. No import statements are needed.

@@ -96,7 +96,7 @@ You are required to attach the next stage guide to each stage in the following g
 - The next stage guide is the instruction of what to do next after the stage. 
 - If may include conditions for the transition to the next stage.
 - By default, after each stage, go to the next stage in the list.
-- Remember that there exist two special stages: Fail and Complete.
+- Remember that there exist two special stages: Failed and Complete.
 - Especially, you must translate the transition rule into a form using goto StageX.
 - You should add a clear condition on the goto statements.
 - If the experiment_description does not contain the next stage guide, just use the default rule: Fail if the stage fails, go to next stage if the stage completes.
@@ -134,10 +134,10 @@ def generate_stages(description):
     for i, stage_dict in enumerate(raw_stages.values()):
         stage_titles.append(f"Stage{i+1}")
     raw_stages["Complete"] = "experiment is completed."
-    raw_stages["Fail"] = "experiment is fail"
+    raw_stages["Failed"] = "experiment is fail"
     raw_stages = attach_next_stage_guide(raw_stages, description)
     del raw_stages["Complete"]
-    del raw_stages["Fail"]
+    del raw_stages["Failed"]
     raw_stages_with_parameters = []
     parameters_list = []
     for s, res in p_map(extract_parameters, raw_stages.values()):
