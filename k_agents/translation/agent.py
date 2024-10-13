@@ -12,17 +12,17 @@ from k_agents.experiment.experiment import Experiment
 from k_agents.memory.code_wmemory import CodeWMemoryItem
 from k_agents.memory.lt_memory import Idea, IdeaResult, LongTermMemory, RecallResult
 from k_agents.memory.w_memory import WorkingMemory, WMemoryItem
-from k_agents.translation.code_indexer import add_exp_to_ltm
+from k_agents.translation.code_translation import add_exp_to_ltm
 from k_agents.translation.env import TranslationAgentEnv
-from k_agents.translation.procedure_indexer import extract_procedures_to_lt_memory
+from k_agents.translation.procedure_translation import extract_procedures_to_lt_memory
 from k_agents.variable_table import VariableTable
 
 
-class TranslationAgent:
+class TranslationAgentGroup:
 
     def __init__(self):
-        self.lt_memory = LongTermMemory()
-        self.codegen_idea = CodegenIdea()
+        self.translation_agents = LongTermMemory()
+        self.codegen_agent = CodegenAgent()
         self.n_recall_items = 10
         self._cached_recall_res = None
 
@@ -35,7 +35,7 @@ class TranslationAgent:
         """
         if n_recall_items is None:
             n_recall_items = self.n_recall_items
-        res = self.lt_memory.recall_by_wm(wm, top_k=n_recall_items)
+        res = self.translation_agents.recall_by_wm(wm, top_k=n_recall_items)
         self._cached_recall_res = res
         return res
 
@@ -65,7 +65,7 @@ class TranslationAgent:
                 n_recall_items += 2
                 recall_res = self.recall(wm, n_recall_items)
 
-        idea_res = self.codegen_idea.run_idea(wm)
+        idea_res = self.codegen_agent.run_idea(wm)
         recall_res = RecallResult([idea_res])
         wm.update_by_recall_res(recall_res, to_tick=False)
         code = wm.extract_tag_contents("attempted_code")
@@ -73,14 +73,14 @@ class TranslationAgent:
             return code[0]
 
 
-class CodegenIdea(Idea):
+class CodegenAgent(Idea):
     """
     Generate the code based on the working memory
     Will put the generated code in the working memory
     """
 
     def __init__(self):
-        super().__init__("CodegenIdea")
+        super().__init__("CodegenAgent")
 
     def get_score(self, w_memory: WorkingMemory):
         if not w_memory.has_tag("code_suggestion"):
@@ -196,10 +196,10 @@ def init_translation_agent(module, document_folder: str = None):
 
     lt_memory, exp_var_table = build_code_ltm(module, document_paths)
 
-    translation_agent = TranslationAgent()
+    translation_agent = TranslationAgentGroup()
 
     for idea in lt_memory.ideas:
-        translation_agent.lt_memory.add_idea(idea)
+        translation_agent.translation_agents.add_idea(idea)
     translation_agent.n_recall_items = 5
 
     moduler_var_table = VariableTable()

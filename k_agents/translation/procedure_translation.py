@@ -25,7 +25,7 @@ def get_experiment_name_for_procedure(title):
     return title
 
 
-class ProcedureCodegenIdea(EmbedIdea):
+class ProcedureTranslationAgent(EmbedIdea):
     _n_procedure_ideas = 1
 
     def __init__(self, title: str, steps: str, background: str, embed_src: list[str]):
@@ -33,8 +33,8 @@ class ProcedureCodegenIdea(EmbedIdea):
         self.steps = steps
         self.background = background
         self.label = f"Experiment_{get_experiment_name_for_procedure(title)}"
-        ProcedureCodegenIdea._n_procedure_ideas += 1
-        super().__init__(f"ProcedureCodegenIdea for {title}", embed_src)
+        ProcedureTranslationAgent._n_procedure_ideas += 1
+        super().__init__(f"ProcedureTranslationAgent for {title}", embed_src)
 
     def run_idea(self, w_memory: WorkingMemory) -> IdeaResult:
         instruction = w_memory.extract_tag_contents("instruction")[0]
@@ -179,7 +179,7 @@ def generate_idea_from_procedure(procedure):
     background = procedure["background"]
     steps = procedure["steps"]
     embed_src = imagine_applications_for_doc(title, background)
-    idea = ProcedureCodegenIdea(title, steps, background, embed_src + [title])
+    idea = ProcedureTranslationAgent(title, steps, background, embed_src + [title])
     return idea
 
 

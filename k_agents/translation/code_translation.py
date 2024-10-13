@@ -59,12 +59,12 @@ def add_exp_to_ltm(lt_memory: LongTermMemory, var_table: VariableTable,
         var_table (VariableTable): The variable table.
         exp_cls (Type[Any]): The experiment class to be added to lt_memory and var_table.
     """
-    idea = ExperimentCodegenIdea(exp_cls)
+    idea = ExpCodeTranslationAgent(exp_cls)
     lt_memory.add_idea(idea)
     var_table.add_variable(exp_cls.__name__, exp_cls, exp_cls.__name__)
 
 
-class ExperimentCodegenIdea(EmbedIdea):
+class ExpCodeTranslationAgent(EmbedIdea):
     def __init__(self, exp_cls: Type[Any]):
         """
         Initialize an idea for triggering and embedding experiment-based sentences.

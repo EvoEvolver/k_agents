@@ -2,20 +2,20 @@ from mllm import Chat
 from mllm.utils.parser import Parse
 
 from k_agents.memory.w_memory import WorkingMemory
-from k_agents.translation.agent import TranslationAgent
-from k_agents.translation.code_indexer import ExperimentCodegenIdea
+from k_agents.translation.agent import TranslationAgentGroup
+from k_agents.translation.code_translation import ExpCodeTranslationAgent
 
 
-class TranslationAgentRAG(TranslationAgent):
+class TranslationAgentGroupRAG(TranslationAgentGroup):
 
     def recall(self, wm: WorkingMemory, n_recall_items=None):
         if n_recall_items is None:
             n_recall_items = self.n_recall_items
-        ideas_from_score = self.lt_memory.get_ideas_by_score(wm, n_recall_items,
-                                                             None)
+        ideas_from_score = self.translation_agents.get_ideas_by_score(wm, n_recall_items,
+                                                                      None)
         prompt = []
         for idea in ideas_from_score:
-            idea: ExperimentCodegenIdea
+            idea: ExpCodeTranslationAgent
             desc = idea.get_exp_description()
             prompt.append(f"<experiment>{desc}</experiment>")
         prompt = "\n".join(prompt)
@@ -56,7 +56,7 @@ class TranslationAgentRAG(TranslationAgent):
             code = Parse.quotes(code)
         return code
 
-class TranslationAgentRagJSON(TranslationAgentRAG):
+class TranslationAgentRagJSON(TranslationAgentGroupRAG):
     def codegen(self, wm: WorkingMemory, recall_res=None) -> str:
         experiments = wm.extract_tag_contents("experiments")[0]
         available_variables = wm.extract_tag_contents("available_variables")
