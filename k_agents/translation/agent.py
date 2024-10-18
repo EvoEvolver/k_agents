@@ -230,11 +230,6 @@ def build_code_ltm(module, document_paths: List[str] = None):
                 continue
             classes.append(class_obj)
 
-    # Load the AI automated experiment class for nested execution.
-
-    from k_agents.execution.agent import AutoRun
-    var_table.add_variable('AutoRun', AutoRun, None)
-
     def _add_exp_to_ltm(exp_cls: Type[Any]):
         add_exp_to_ltm(lt_memory, var_table, exp_cls)
 
@@ -242,7 +237,7 @@ def build_code_ltm(module, document_paths: List[str] = None):
           title="Adding experiment to memory")
 
     document_paths = document_paths or []
-
-    extract_procedures_to_lt_memory(document_paths, lt_memory, var_table)
+    if len(document_paths) > 0:
+        extract_procedures_to_lt_memory(document_paths, lt_memory, var_table)
 
     return lt_memory, var_table

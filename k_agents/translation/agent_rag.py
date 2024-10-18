@@ -4,6 +4,8 @@ from mllm.utils.parser import Parse
 from k_agents.memory.w_memory import WorkingMemory
 from k_agents.translation.agent import TranslationAgentGroup
 from k_agents.translation.code_translation import ExpCodeTranslationAgent
+from k_agents.translation.procedure_translation import ProcedureTranslationAgent, \
+    get_experiment_name_for_procedure
 
 
 class TranslationAgentGroupRAG(TranslationAgentGroup):
@@ -15,9 +17,13 @@ class TranslationAgentGroupRAG(TranslationAgentGroup):
                                                                       None)
         prompt = []
         for idea in ideas_from_score:
-            idea: ExpCodeTranslationAgent
-            desc = idea.get_exp_description()
-            prompt.append(f"<experiment>{desc}</experiment>")
+            if isinstance(idea, ExpCodeTranslationAgent):
+                desc = idea.get_exp_description()
+                prompt.append(f"<experiment>{desc}</experiment>")
+            elif isinstance(idea, ProcedureTranslationAgent):
+                desc = f"Experiment name and arguments: {get_experiment_name_for_procedure(idea.title)}", "The experiment implements: " + idea.title + "\n" + "Steps: " + idea.steps + "\n" + "Background: " + idea.background
+                prompt.append(f"<experiment>{desc}</experiment>")
+
         prompt = "\n".join(prompt)
         wm.add_content(prompt, tag="experiments")
 

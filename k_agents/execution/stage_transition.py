@@ -65,8 +65,10 @@ def get_next_stage_label(current_stage: Stage, experiment_result: dict[str, str]
 
     if experiment_result['success']:
         current_stage.n_failed = 0
+        current_stage.n_success += 1
     else:
         current_stage.n_failed += 1
+    current_stage.n_executed += 1
 
     result_prompt = ""
 
@@ -79,8 +81,11 @@ def get_next_stage_label(current_stage: Stage, experiment_result: dict[str, str]
     <current_stage>
     {current_stage.label}:{current_stage.description}
     """
-    if current_stage.n_failed > 0:
-        prompt += f"""The current stage has failed {current_stage.n_failed} times."""
+
+    prompt += f"""
+    The current stage has been executed {current_stage.n_executed} times.
+    There are {current_stage.n_failed} failed attempts and {current_stage.n_success} successful attempts.
+    """
 
     prompt += f"""
     </current_stage>
