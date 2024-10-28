@@ -1,5 +1,5 @@
 MinimalLLM
-fibers @ git+https://github.com/EvoEvolver/FibersNext.git
+fibers @ git+https://github.com/EvoEvolver/Fibers.git
 markdownify
 ipywidgets
 asteval
