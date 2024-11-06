@@ -57,15 +57,16 @@ Your objective is to extract the parameters from a given description of an exper
 <requirement>
 You are required to extract parameters of the experiment from the given description.
 However, non-experimental parameters, such as the number of retries, should not be extracted.
+You are required to put the unit of the parameter in its name instead of the value.
 For example:
-"Do experiment A with frequency offset 10Hz and amplitude=`amplitude` and duration. If failed, retry 3 times."
+"Do experiment A with frequency offset 10MHz and amplitude=`amplitude` and duration=10us. If failed, retry 3 times."
 should be extracted as:
 "Do experiment A with frequency_offset=`frequency_offset` and amplitude=`amplitude` and duration. If failed, retry 3 times."
 and
 {{
-    "frequency_offset": 10,
+    "frequency_offset_in_MHz": 10,
     "amplitude": None,
-    "duration": None
+    "duration_in_us": None
 }}
 </requirement>
 <output_format>
@@ -120,7 +121,7 @@ You are required to output a JSON dict containing a list of stages. The number o
 
     chat = Chat(completed_prompt,
                      "You are a very smart and helpful assistant who only reply in JSON dict", dedent=True)
-    res = chat.complete(parse="dict", expensive=True, cache=True)
+    res = chat.complete(parse="dict", expensive=True, cache=False)
     del res["stage_analysis"]
     stage_dict = {key: {"instruction": value["instruction"], "next_stage_guide": value["next_stage_guide_with_goto"]}
                   for key, value in res.items()}

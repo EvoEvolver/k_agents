@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from .stage_execution import Stage
 
 
-def generate_parameter_patch(stage_jumped_to: Stage) -> dict:
+def generate_parameter_patch(stage_jumped_to: Stage, inspection_result) -> dict:
 
     variables_in_prompt = {}
     for var_name, var_obj in stage_jumped_to.var_table.variable_objs.items():
@@ -29,14 +29,17 @@ def generate_parameter_patch(stage_jumped_to: Stage) -> dict:
     <parameters>
     {json.dumps(variables_in_prompt, indent=1)}
     </parameters>
-    
-    Using the details provided, whether you need to updated parameters for this stage. 
+    <report>
+    {inspection_result}
+    </report>
+    <requirements>
+    Using the experiment report provided, decide whether you need to updated parameters for this stage. 
     If so, provide how to update the parameters.
-    
     Response in JSON with the following keys:
     "analysis" (string): an analysis about whether the parameters need to be updated and how to update them if needed.
     "to_update" (bool): whether the parameters need to be updated.
     "parameter_patch" (dict):  a dict that describes how to update the parameters. The keys should be the variable names and the values should be the new values. If a parameter is not updated, it should not be included in the dict.
+    </requirements>
     """
 
     chat = mllm.Chat(prompt, dedent=True)

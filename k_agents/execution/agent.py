@@ -147,7 +147,7 @@ class ExecutionAgent:
             next_stage = find_next_stage(self.stages, next_stage_label)
 
             if curr_stage.label in next_stage.label:
-                new_parameters = generate_parameter_patch(next_stage)
+                new_parameters = generate_parameter_patch(next_stage, inspection_result)
                 next_stage.var_table.update_by_dict(new_parameters)
 
             hide_spinner(spinner_id)

@@ -200,7 +200,7 @@ def init_translation_agent(module, document_folder: str = None):
 
     for idea in lt_memory.ideas:
         translation_agent.translation_agents.add_idea(idea)
-    translation_agent.n_recall_items = 5
+    translation_agent.n_recall_items = 3
 
     moduler_var_table = VariableTable()
     moduler_var_table.add_variable("np", np)
