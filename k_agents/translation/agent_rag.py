@@ -1,7 +1,7 @@
 from mllm import Chat
 from mllm.utils.parser import Parse
 
-from k_agents.memory.w_memory import WorkingMemory
+from k_agents.agent_group.w_memory import WorkingMemory
 from k_agents.translation.agent import TranslationAgentGroup
 from k_agents.translation.code_translation import ExpCodeTranslationAgent
 from k_agents.translation.procedure_translation import ProcedureTranslationAgent, \
@@ -13,15 +13,15 @@ class TranslationAgentGroupRAG(TranslationAgentGroup):
     def recall(self, wm: WorkingMemory, n_recall_items=None):
         if n_recall_items is None:
             n_recall_items = self.n_recall_items
-        ideas_from_score = self.translation_agents.get_ideas_by_score(wm, n_recall_items,
+        agents_from_score = self.translation_agents.get_agents_by_score(wm, n_recall_items,
                                                                       None)
         prompt = []
-        for idea in ideas_from_score:
-            if isinstance(idea, ExpCodeTranslationAgent):
-                desc = idea.get_exp_description()
+        for agent in agents_from_score:
+            if isinstance(agent, ExpCodeTranslationAgent):
+                desc = agent.get_exp_description()
                 prompt.append(f"<experiment>{desc}</experiment>")
-            elif isinstance(idea, ProcedureTranslationAgent):
-                desc = f"Experiment name and arguments: {get_experiment_name_for_procedure(idea.title)}", "The experiment implements: " + idea.title + "\n" + "Steps: " + idea.steps + "\n" + "Background: " + idea.background
+            elif isinstance(agent, ProcedureTranslationAgent):
+                desc = f"Experiment name and arguments: {get_experiment_name_for_procedure(agent.title)}", "The experiment implements: " + agent.title + "\n" + "Steps: " + agent.steps + "\n" + "Background: " + agent.background
                 prompt.append(f"<experiment>{desc}</experiment>")
 
         prompt = "\n".join(prompt)

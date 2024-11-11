@@ -4,8 +4,8 @@ from typing import Any, Type, List
 from mllm import Chat
 from mllm.utils.parser import Parse
 
-from k_agents.memory.lt_memory import LongTermMemory, EmbedIdea, IdeaResult
-from k_agents.memory.w_memory import WorkingMemory
+from k_agents.agent_group.agent_group import AgentGroup, EmbedAgent, AgentResult
+from k_agents.agent_group.w_memory import WorkingMemory
 from k_agents.variable_table import VariableTable
 
 
@@ -49,25 +49,25 @@ You should output 4 sentences.
     return values
 
 
-def add_exp_to_ltm(lt_memory: LongTermMemory, var_table: VariableTable,
+def add_exp_to_ltm(lt_memory: AgentGroup, var_table: VariableTable,
                    exp_cls: Type[Any]) -> None:
     """
     Add an experiment class to the long term memory and variable table for the experiment class.
 
     Args:
-        lt_memory (LongTermMemory): The long term memory .
+        lt_memory (AgentGroup): The long term memory .
         var_table (VariableTable): The variable table.
         exp_cls (Type[Any]): The experiment class to be added to lt_memory and var_table.
     """
-    idea = ExpCodeTranslationAgent(exp_cls)
-    lt_memory.add_idea(idea)
+    agent = ExpCodeTranslationAgent(exp_cls)
+    lt_memory.add_agent(agent)
     var_table.add_variable(exp_cls.__name__, exp_cls, exp_cls.__name__)
 
 
-class ExpCodeTranslationAgent(EmbedIdea):
+class ExpCodeTranslationAgent(EmbedAgent):
     def __init__(self, exp_cls: Type[Any]):
         """
-        Initialize an idea for triggering and embedding experiment-based sentences.
+        Initialize an agent for triggering and embedding experiment-based sentences.
 
         Args:
             exp_cls (Type[Any]): The experiment class to be considered.
@@ -78,21 +78,21 @@ class ExpCodeTranslationAgent(EmbedIdea):
         if "needing_situation" in exp_cls.__dict__:
             embedding_src = exp_cls.needing_situations
         else:
-            # Generating sentences for the idea
+            # Generating sentences for the agent
             embedding_src = imagine_applications(exp_cls.__name__,
                                                  inspect.getdoc(exp_cls.run))
         triggering_src = [exp_name] + embedding_src
         super().__init__(f"{exp_name} suggestion", triggering_src)
 
-    def run_idea(self, w_memory: WorkingMemory) -> IdeaResult:
+    def run_agent(self, w_memory: WorkingMemory) -> AgentResult:
         """
-        Execute the idea using the provided working memory, returning an IdeaResult.
+        Execute the agent using the provided working memory, returning an agentResult.
 
         Args:
             w_memory (WorkingMemory): The current working memory instance.
 
         Returns:
-            IdeaResult: The result of executing the idea, possibly modifying working memory.
+            AgentResult: The result of executing the agent, possibly modifying working memory.
         """
         # Create a detailed prompt for the Chat model
         instruction = w_memory.extract_tag_contents("instruction")[0]
@@ -126,10 +126,10 @@ You should output a JSON dict. The keys should be
         res = chat.complete(parse="dict", expensive=True)
 
         if not res["applicable"] or not res["suitable"]:
-            idea_res = IdeaResult(self, False)
-            return idea_res
+            agent_res = AgentResult(self, False)
+            return agent_res
 
-        idea_res = IdeaResult(self, True)
+        agent_res = AgentResult(self, True)
 
         one_line_reason = res["explanation"].replace('\n', ' ')
 
@@ -145,9 +145,9 @@ You should output a JSON dict. The keys should be
 # Suggested code:
 {suggestion}
 """
-        idea_res.add_new_wm_content(code, tag="code_suggestion")
+        agent_res.add_new_wm_content(code, tag="code_suggestion")
 
-        return idea_res
+        return agent_res
 
     def get_exp_description(self):
         signature = inspect.signature(self.exp_cls.run)

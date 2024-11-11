@@ -1,10 +1,171 @@
-from typing import List
+import json
+from pprint import pprint
+from typing import List, Dict
 
-from mllm.utils import parallel_map
+import mllm
+from mllm import Chat
+from mllm.utils import p_map
 
 from k_agents.execution.stage_execution import Stage
-import json
-import mllm
+
+
+def extract_stages(description: str) -> Dict:
+    prompt = f"""
+<experiment_description>
+{description}
+</experiment_description>
+<objective>
+Your objective is to decompose the experiment description into standalone instruction.
+Each instruction should include an experiment. 
+The instruction should make a minimal modification to the original description.
+You should not do any inference or interpretation of the description. 
+You are encouraged to copy the description as is.
+You should output as few instructions as possible. You must not expand the instructions.
+The instructions must not contain any information about what to do next after the instruction, such as a change of parameter and go to fail.
+</requirements>
+<example>
+For example, if a piece of description is:
+"Run experiment A with frequency=10. If failed, retry 3 times."
+You should change it into:
+"Run experiment A with frequency=10."
+<output_format>
+You are required to output a JSON dict with a single key "instructions", which contains a list of instructions. Each instruction should be represented as a string.
+</output_format>
+"""
+
+    completed_prompt = prompt
+
+    chat = Chat(completed_prompt,
+                     "You are a very smart and helpful assistant who only reply in JSON dict", dedent=True)
+    res = chat.complete(parse="dict", expensive=True, cache=True)
+
+    stages = {}
+    for i, stage in enumerate(res["instructions"]):
+        stages[f"Stage{i+1}"] = stage
+
+    return stages
+
+
+def extract_parameters(description) -> dict:
+    prompt = f"""
+<objective>
+Your objective is to extract the parameters from a given description of an experiment.
+</objective>
+<description>
+{json.dumps(description, indent=1)}
+</description>
+<requirement>
+You are required to extract parameters of the experiment from the given description.
+However, non-experimental parameters, such as the number of retries, should not be extracted.
+You are required to put the unit of the parameter in its name instead of the value.
+For example:
+"Do experiment A with frequency offset 10MHz and amplitude=`amplitude` and duration=10us. If failed, retry 3 times."
+should be extracted as:
+"Do experiment A with frequency_offset=`frequency_offset` and amplitude=`amplitude` and duration. If failed, retry 3 times."
+and
+{{
+    "frequency_offset_in_MHz": 10,
+    "amplitude": None,
+    "duration_in_us": None
+}}
+</requirement>
+<output_format>
+You are required to output a JSON dict with the following keys:
+"new_description" (dict): The description with the parameters replaced by placeholders. The dict must in the same format as the input description.
+"parameters" (dict): The extracted parameters.
+"""
+
+    completed_prompt = prompt
+
+    chat = Chat(completed_prompt,
+                     "You are a very smart and helpful assistant who only reply in JSON dict", dedent=True)
+    res = chat.complete(parse="dict", expensive=True, cache=True)
+
+    return res
+
+def attach_next_stage_guide(stages: Dict, description: str) -> Dict:
+    prompt = f"""
+You are required to attach the next stage guide to each stage in the following given list of stages.
+<stages>
+{json.dumps(stages, indent=1)}
+</stages>
+<experiment_description>
+{description}
+</experiment_description>
+<requirement>
+- You are required to attach the next stage guide to each stage in the given list of stages.
+- The next stage guide is the instruction of what to do next after the stage. 
+- If may include conditions for the transition to the next stage.
+- By default, after each stage, go to the next stage in the list.
+- Remember that there exist two special stages: Failed and Complete.
+- Especially, you must translate the transition rule into a form using goto StageX.
+- You should add a clear condition on the goto statements.
+- If the experiment_description does not contain the next stage guide, just use the default rule: Fail if the stage fails, go to next stage if the stage completes.
+</requirement>
+<output_format>
+You are required to output a JSON dict containing a list of stages. The number of stages should be the same as the input list.
+{{
+   "stage_analysis": str,
+   "Stage1": {{
+   "instruction": str,
+   "original_next_stage_guide": str
+   "next_stage_guide_with_goto": str
+   }},
+    "...": {{
+    }}
+}}
+</output_format>
+"""
+
+    completed_prompt = prompt
+
+    chat = Chat(completed_prompt,
+                     "You are a very smart and helpful assistant who only reply in JSON dict", dedent=True)
+    res = chat.complete(parse="dict", expensive=True, cache=False)
+    del res["stage_analysis"]
+    stage_dict = {key: {"instruction": value["instruction"], "next_stage_guide": value["next_stage_guide_with_goto"]}
+                  for key, value in res.items()}
+
+    return stage_dict
+
+
+def generate_stages(description):
+    stage_titles = []
+    raw_stages = extract_stages(description)
+    for i, stage_dict in enumerate(raw_stages.values()):
+        stage_titles.append(f"Stage{i+1}")
+    raw_stages["Complete"] = "experiment is completed."
+    raw_stages["Failed"] = "experiment is fail"
+    raw_stages = attach_next_stage_guide(raw_stages, description)
+    del raw_stages["Complete"]
+    del raw_stages["Failed"]
+    raw_stages_with_parameters = []
+    parameters_list = []
+    for s, res in p_map(extract_parameters, raw_stages.values()):
+        raw_stages_with_parameters.append(res["new_description"])
+        parameters = res["parameters"]
+        number_parameters = {}
+        for key, value in parameters.items():
+            if isinstance(value, (int, float, bool)):
+                number_parameters[key] = value
+        parameters_list.append(number_parameters)
+    stages = []
+    for i, raw_stage in enumerate(raw_stages_with_parameters):
+        stage = Stage(label=f"Stage{i+1}", title=stage_titles[i],
+                      description=raw_stage["instruction"],
+                      next_stage_guide=raw_stage["next_stage_guide"])
+        stages.append(stage)
+        stage.var_table.update_by_dict(parameters_list[i])
+    return stages
+
+
+if __name__ == '__main__':
+    description_rabi = '''
+- Iterative Two-qubit Amplitude test at frequency=4800 on `duts`
+    '''
+
+    description = description_rabi
+    generate_stages(description)
 
 
 def stages_to_html(stages_list: List[Stage]):
@@ -69,211 +230,6 @@ Return format:
     return updated_stage_info["stages"]
 
 
-def refine_stage_description(res: dict) -> dict:
-    """
-    Refine the stage description based on the response from the AI.
-
-    Parameters:
-        res (dict): The response from the AI.
-    """
-
-    prompt = f"""
-You are required to separate a description based on some rules.
-
-<reference>
-{res['Reference']}
-</reference>
-
-<title>
-{res['Title']}
-</title>
-
-<description>
-{res['ExperimentDescription']}
-</description>
-
-<requirements>
-- If the description contains information not related to the input, remove it. 
-- If the description contains objectives or goals, remove them.
-- Quote the the parameters and the values in the format of `"<parameter name>=<parameter value>"` if the actual values are present in the description. 
-    The values should be the actual values, not placeholders. 
-- Only modify the parts described above, keep the rest of the description as is.
-- If this stage only contains data and result analysis and interpretation without carrying out any experiment,
-  please set the <contains_experiment> to False. Otherwise set it to True.
-- If the description contains information that is not present in the reference, for example the details
-   how to implement each stages but they are not specifically described in the reference, remove these information.
-- Do not include any additional information in the description. Do not include any information that is not presented in the description, such as the details
- in how to implement each steps based on your knowledge.
-</requirements>
-
-<formats>
-Response in JSON with the following keys:
-"analysis" (string):" an analysis about how to update the stage description.,
-"action_description" (string): the description about the action. For example: "Conduct the <experiment name> with xxx parameter." You should not mention what to do next based on the result.
-"background_description" (string): the background information of the experiment. (could be empty),
-"next" (string): what to do next based on the result of the experiment. (could be empty),
-"contains_experiment" (bool): whether the stage contains an experiment or not.
-</formats>
-"""
-
-    chat = mllm.Chat(prompt,
-                     "You are a very smart and helpful assistant who only reply in JSON dict")
-    updated_res = chat.complete(parse="dict", expensive=True, cache=True)
-
-    new_res = {
-        "Title": res["Title"],
-        "ExperimentDescription": updated_res["action_description"],
-        "Next": res["Next"],
-        'contains_experiment': updated_res["contains_experiment"]
-    }
-
-    return new_res
-
-
-def _get_stage_from_agent_response(stage_info: tuple) -> dict:
-    """
-    Get a stage object from the response of the AI agent.
-
-    Parameters:
-        stage_info (tuple): The tuple containing the stage name and content.
-
-    Returns:
-        dict: The stage object.
-    """
-
-    stage_name, stage_content = stage_info
-
-    if stage_name in ["Complete", "Failed"]:
-        refined_content = stage_content
-    else:
-        refined_content = refine_stage_description(stage_content)
-
-    stage_content.update(refined_content)
-
-    return stage_content
-
-
-def get_stages_from_instruction(description: str) -> List[Stage]:
-    """
-    Get stages from the description of the experiment.
-
-    Parameters:
-        description (str): The description of the experiment.
-
-    Returns:
-        List[Stage]: The list of stages of the experiment.
-    """
-    # Note: The same experiment with different parameter choice (very common when you need to refine the parameters) needs to be classified into the same stage. #
-
-    prompt = f"""
-<experiment_description>
-{description}
-</experiment_description>
-<objective>
-Your objective is to divide the experimental description into stages. Each stage of the experiment should represent a distinct operation with explicit instructions and transition rules. The stages must be concise, self-contained, and clearly defined. Especially, you are required to output a JSON dict with the following elements:
-</requirements>
-<output_format>
-
-You should output a JSON dict containing keys for each stage of the experiment. The key should be the label of the stage. The value should be a dict containing the following keys:
-
-- Title: a descriptive title for the stage.
-
-- ExperimentDescription: a procedural outline for each stage of the experiment. The description should explicitly state the name of the experiment, list all parameters involved, and clearly outline the step to be taken. You should not mention how the experiment will be executed.
-
-- Next: a description of the transition rules to proceed to the next stage based on the results of the experiment. This should be a clear and concise instruction on how to advance to the next stage.
-Note: By default, always proceed to the next stage when the experiment succeeded.
-Note: When there are additional descriptions about how to transition to the next stage based on the results of the experiment, include them in the transition rules.
-
-- Reference: The original part of <experiment_description> that is related to your experiment description.
-</output_format>
-""" + """
-<output_example>
-{
-  "Stage1": {
-    "Title": "Experiment1",
-    "ExperimentDescription": "Conduct the <experiment name 1> with parameters <parameter list for experiment 1>.",
-    "Next": "Proceed to Stage ... if successful. Else, proceed to Stage ..."
-    "Reference":'<The original input prompt related to this stage>'
-  },
-  "Stage ...": {
-    "Title": "Experiment ...",
-    "ExperimentDescription": "Conduct the <experiment name ...> with parameters <parameter list for experiment ...>.",
-    "Next": "Proceed to Complete if xx. Proceed to Stage ... if xxx"
-    "Reference":'<The original input prompt related to this stage>'
-  },
-  "Complete": {},
-  "Failed": {}
-}
-</output_example>
-<Notice>
-- You should divide the description into distinct stages, each representing a specific operation.
-- Do not include any additional information that is not present in the description. You must not imagine the details how to implement each stages.
-- The description might mixes the action description and transition rules, you must separate them. You must not take a transition rule as a separate stage. 
-- The Next key must be a string detailing the transition conditions. Do not use "retry", or "revert", instead describe the stage label directly.
-- Generate as less stages as possible, ideally just one stage. However, you must make sure each stage is distinct and does not contain more than one experiment to carry out.
-- If the description is very short, you must not adding extra information beyond the original description.
-</Notice>
-"""
-
-    completed_prompt = prompt
-
-    chat = mllm.Chat(completed_prompt,
-                     "You are a very smart and helpful assistant who only reply in JSON dict", dedent=True)
-    res = chat.complete(parse="dict", expensive=True, cache=True)
-    stages = []
-
-    meta_stages = {
-        "Complete": {
-            "Title": "Completion",
-            "ExperimentDescription": "Conclude the experiment has succeeded.",
-            "Next": "None"
-        },
-        "Failed": {
-            "Title": "Failure",
-            "ExperimentDescription": "Conclude the experiment has failed.",
-            "Next": "None"
-        }
-    }
-    res.update(meta_stages)
-
-    # Add overview to each dict in res
-    for stage_name, stage_content in res.items():
-        stage_content['label'] = stage_name
-
-    stages_info = [k[1] for k in
-                   sorted(parallel_map(_get_stage_from_agent_response, res.items()),
-                          key=lambda x: x[0])]
-
-    # Check if there is any stage marked as contains_experiment=False
-    has_stage_need_to_remove = len([stage for stage in stages_info if
-                                    stage['label'] not in ['Complete', 'Failed'] and not
-                                    stage['contains_experiment']]) > 0
-
-    if has_stage_need_to_remove:
-        stages_info = remove_unused_stages_and_update_next(stages_info)
-
-    for stage_info in stages_info:
-        stage = Stage(label=stage_info['label'], title=stage_info['Title'],
-                      description=stage_info['ExperimentDescription'],
-                      next_stage_guide=stage_info['Next'])
-        stages.append(stage)
-
-    # for stage_name, stage_content in res.items():
-
-    #    if stage_name in ["Complete", "Failed"]:
-    #        refined_content = stage_content
-    #    else:
-    #        refined_content = refine_stage_description(stage_content)
-
-    #    stage = Stage(label=stage_name, title=refined_content['Title'],
-    #                  overview=overview,
-    #                  description=refined_content['ExperimentDescription'],
-    #                  next_stage_guide=refined_content['Next'])
-    #    stages.append(stage)
-
-    return stages
-
-
 def find_the_stage_label_based_on_description(stages: List[Stage], description: str):
     """
     Find the stage label based on the description.
@@ -318,45 +274,3 @@ def find_the_stage_label_based_on_description(stages: List[Stage], description: 
     for stage in stages:
         if res['stage_label'] in stage.label or stage.label in res['stage_label']:
             return stage
-
-
-if __name__ == '__main__':
-    description_ramsey = '''
-# Gate Frequency Calibration
-## Background
-
-Ramsey experiment can predict the qubit frequency different to the frequency I am driving it. First I guess a qubit frequency (which already set in the system), and assume the difference is no more than 10 MHz. Therefore I run a Ramsey experiment with frequency offset 10 MHz. Then I wish to do a more accurate calibration by increase the experiment time, and reduce the offset to 1MHz. If this experiment failed and show a value more than 3 MHz its likely that the initial guess is more than 10MHz away from the qubit. Therefore we go back and run experiment at 20MHz offset again. After it succeeded, we do a fine calibration with offset 0.1MHz.
-
-## Steps
-
-- Run Ramsey experiment on the qubit, with frequency offset 10 MHz, stop at 0.3us, step 0.005us.
-- Extract the number of periods from the AI analysis texts.
-- If observed less than 3 period, double the stop value and step value and try again.
-- If observed more than 10 period, half the stop value and step value and try again.
-- Run Ramsey experiment on the qubit, with frequency offset 1 MHz, stop at 3us, step 0.05us
-- If the second experiment obtained a frequency offset more than 3MHz, go back to the first step, set frequency offset to 20MHz. and try again.
-- Run Ramsey experiment on the qubit, with frequency offset 0.1 MHz, stop at 30us, step 0.5us.
-'''
-    description_rabi = '''
-
-# Gate Amplitude Calibration
-
-## Background
-
-To accurately calibrate the amplitude of the control pulses for our qubit gates, we start with a Rabi oscillation experiment. This experiment helps determine the amplitude required to perform a full rotation on the Bloch sphere. We begin the calibration with a preliminary range of pulse durations starting from 0.01 microseconds up to 0.15 microseconds, incrementing by 0.001 microseconds each step. Successful determination of the Rabi frequency from these measurements will indicate the optimal amplitude setting for the qubit gates.
-
-After successfully calibrating the Rabi frequency, we proceed to Pingpong amplitude calibration using the default parameters. This secondary calibration further refines our control over the qubit by adjusting the amplitudes based on the results from the Rabi experiment, ensuring more precise and reliable gate operations.
-
-## Steps
-
-- Conduct a Rabi experiment to determine the Rabi frequency: Start pulse duration at 0.01 microseconds, step 0.001 microseconds, stop at 0.15 microseconds.
-- If observed less than 3 period, double the stop value and step value and try again..
-- If observed more than 10 period, half the stop value and step value and try again.
-- If the above experiment failed, re-do it and adjust parameters based on visual instructions.
-- Upon the successful completion of the Rabi experiment, run Pingpong amplitude calibration with default parameters.
-'''
-
-    description = description_rabi
-    stages = get_stages_from_instruction(description)
-    for stage in stages:
-        print(stage.to_dict())

@@ -6,8 +6,8 @@ from markdownify import markdownify
 from mllm import Chat
 from mllm.utils.maps import p_map
 
-from k_agents.memory.lt_memory import LongTermMemory, EmbedIdea, IdeaResult
-from k_agents.memory.w_memory import WorkingMemory
+from k_agents.agent_group.agent_group import AgentGroup, EmbedAgent, AgentResult
+from k_agents.agent_group.w_memory import WorkingMemory
 from k_agents.variable_table import VariableTable
 
 
@@ -25,18 +25,18 @@ def get_experiment_name_for_procedure(title):
     return title
 
 
-class ProcedureTranslationAgent(EmbedIdea):
-    _n_procedure_ideas = 1
+class ProcedureTranslationAgent(EmbedAgent):
+    _n_procedure_agents = 1
 
     def __init__(self, title: str, steps: str, background: str, embed_src: list[str]):
         self.title = title
         self.steps = steps
         self.background = background
         self.label = f"Experiment_{get_experiment_name_for_procedure(title)}"
-        ProcedureTranslationAgent._n_procedure_ideas += 1
+        ProcedureTranslationAgent._n_procedure_agents += 1
         super().__init__(f"ProcedureTranslationAgent for {title}", embed_src)
 
-    def run_idea(self, w_memory: WorkingMemory) -> IdeaResult:
+    def run_agent(self, w_memory: WorkingMemory) -> AgentResult:
         instruction = w_memory.extract_tag_contents("instruction")[0]
         available_variables = w_memory.extract_tag_contents("available_variables")
         if len(available_variables) == 0:
@@ -73,7 +73,7 @@ You are required to output a JSON dict with the following keys
         chat = Chat(prompt)
         res = chat.complete(parse="dict", expensive=True)
         if not res["proper"]:
-            return IdeaResult(self, False)
+            return AgentResult(self, False)
         arg_in_code = []
         for key, value in res["parameter_mapping"].items():
             arg_in_code.append(f", {key}={value}")
@@ -86,9 +86,9 @@ You are required to output a JSON dict with the following keys
 experiment_instance = {self.label}(instruction="""{res["rewritten_instruction"]}""" {arg_in_code})  
 # {annotation_in_prompt}      
 '''
-        idea_res = IdeaResult(self, True)
-        idea_res.add_new_wm_content(code_suggestion, tag="code_suggestion")
-        return idea_res
+        agent_res = AgentResult(self, True)
+        agent_res.add_new_wm_content(code_suggestion, tag="code_suggestion")
+        return agent_res
 
 
 def extract_procedure_contents(markdown_path):
@@ -174,13 +174,13 @@ You should output 4 sentences.
     return values
 
 
-def generate_idea_from_procedure(procedure):
+def generate_agent_from_procedure(procedure):
     title = procedure["title"]
     background = procedure["background"]
     steps = procedure["steps"]
     embed_src = imagine_applications_for_doc(title, background)
-    idea = ProcedureTranslationAgent(title, steps, background, embed_src + [title])
-    return idea
+    agent = ProcedureTranslationAgent(title, steps, background, embed_src + [title])
+    return agent
 
 
 def get_exp_class(procedure):
@@ -204,6 +204,6 @@ def extract_procedures_to_lt_memory(markdown_paths: list[str], lt_memory, var_ta
     for markdown_path in markdown_paths:
         procedures = extract_procedure_contents(markdown_path)
         all_procedures.extend(procedures)
-    for procedure, idea in p_map(generate_idea_from_procedure, all_procedures):
-        var_table.add_variable(idea.label, get_exp_class(procedure))
-        lt_memory.add_idea(idea)
+    for procedure, agent in p_map(generate_agent_from_procedure, all_procedures):
+        var_table.add_variable(agent.label, get_exp_class(procedure))
+        lt_memory.add_agent(agent)

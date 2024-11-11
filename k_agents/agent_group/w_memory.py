@@ -6,7 +6,7 @@ import numpy as np
 from mllm import get_embeddings
 
 if TYPE_CHECKING:
-    from .lt_memory import RecallResult
+    from .agent_group import AgentGroupResult
 
 
 class WMemoryItem:
@@ -94,8 +94,8 @@ class WMemoryItem:
 
 
 class WMemorySuppressingItem(WMemoryItem):
-    def __init__(self, idea, lifetime=3, tag=None):
-        self.idea = idea
+    def __init__(self, agent, lifetime=3, tag=None):
+        self.agent = agent
         super().__init__("", "", lifetime)
         self.tag = tag
 
@@ -195,7 +195,7 @@ class WorkingMemory:
         self.cached_stimuli_embeddings = None
         self.cached_in_prompt_str = None
 
-    def add_content(self, content, tag="idea") -> WMemoryItem:
+    def add_content(self, content, tag="agent") -> WMemoryItem:
         item = WMemoryItem(content, tag)
         self.add_item(item)
         return item
@@ -212,13 +212,13 @@ class WorkingMemory:
             self._items.remove(item)
         self.refresh_cache()
 
-    def get_suppressed_ideas(self) -> list[WMemorySuppressingItem]:
-        suppressed_ideas = []
+    def get_suppressed_agents(self) -> list[WMemorySuppressingItem]:
+        suppressed_agents = []
         for item in self._items:
             if isinstance(item, WMemorySuppressingItem):
                 if item.lifetime > 0:
-                    suppressed_ideas.append(item.idea)
-        return suppressed_ideas
+                    suppressed_agents.append(item.agent)
+        return suppressed_agents
 
     def has_tag(self, tag) -> bool:
         for item in self._items:
@@ -226,8 +226,8 @@ class WorkingMemory:
                 return True
         return False
 
-    def update_by_recall_res(self, recall_res: RecallResult, to_tick: bool = True) -> None:
-        """Update working memory using the response from recalling a round of ideas."""
+    def update_by_recall_res(self, recall_res: AgentGroupResult, to_tick: bool = True) -> None:
+        """Update working memory using the response from recalling a round of agents."""
         recall_res.update_wm_from_res(self)
         if to_tick:
             self.tick()

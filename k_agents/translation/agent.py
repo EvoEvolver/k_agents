@@ -9,9 +9,9 @@ from mllm.utils import p_map
 from mllm.utils.parser import Parse
 
 from k_agents.experiment.experiment import Experiment
-from k_agents.memory.code_wmemory import CodeWMemoryItem
-from k_agents.memory.lt_memory import Idea, IdeaResult, LongTermMemory, RecallResult
-from k_agents.memory.w_memory import WorkingMemory, WMemoryItem
+from k_agents.agent_group.code_wmemory import CodeWMemoryItem
+from k_agents.agent_group.agent_group import RetrievableAgent, AgentResult, AgentGroup, AgentGroupResult
+from k_agents.agent_group.w_memory import WorkingMemory, WMemoryItem
 from k_agents.translation.code_translation import add_exp_to_ltm
 from k_agents.translation.env import TranslationAgentEnv
 from k_agents.translation.procedure_translation import extract_procedures_to_lt_memory
@@ -21,17 +21,17 @@ from k_agents.variable_table import VariableTable
 class TranslationAgentGroup:
 
     def __init__(self):
-        self.translation_agents = LongTermMemory()
+        self.translation_agents = AgentGroup()
         self.codegen_agent = CodegenAgent()
         self.n_recall_items = 10
         self._cached_recall_res = None
 
-    def recall(self, wm: WorkingMemory, n_recall_items=None) -> RecallResult:
+    def recall(self, wm: WorkingMemory, n_recall_items=None) -> AgentGroupResult:
         """
-        Recall ideas from long term memory, using what is currently in the working memory.
+        Recall agents from long term memory, using what is currently in the working memory.
 
-        :param wm: the working memory to stimuli ideas
-        :return: the result of triggered ideas
+        :param wm: the working memory to stimuli agents
+        :return: the result of triggered agents
         """
         if n_recall_items is None:
             n_recall_items = self.n_recall_items
@@ -39,9 +39,9 @@ class TranslationAgentGroup:
         self._cached_recall_res = res
         return res
 
-    def codegen(self, wm: WorkingMemory, recall_res: RecallResult = None) -> str:
+    def codegen(self, wm: WorkingMemory, recall_res: AgentGroupResult = None) -> str:
         """
-        Generate code from working memory, updates working memory with recalled ideas in the process.
+        Generate code from working memory, updates working memory with recalled agents in the process.
 
         Parameters:
         - wm: the working memory to generate code from
@@ -61,19 +61,19 @@ class TranslationAgentGroup:
             if len(wm.extract_tag_contents("code_suggestion")) > 0:
                 break
             else:
-                print("No code suggestion found. Recall more ideas.")
+                print("No code suggestion found. Recall more agents.")
                 n_recall_items += 2
                 recall_res = self.recall(wm, n_recall_items)
 
-        idea_res = self.codegen_agent.run_idea(wm)
-        recall_res = RecallResult([idea_res])
+        agent_res = self.codegen_agent.run_agent(wm)
+        recall_res = AgentGroupResult([agent_res])
         wm.update_by_recall_res(recall_res, to_tick=False)
         code = wm.extract_tag_contents("attempted_code")
         if len(code) > 0:
             return code[0]
 
 
-class CodegenAgent(Idea):
+class CodegenAgent(RetrievableAgent):
     """
     Generate the code based on the working memory
     Will put the generated code in the working memory
@@ -87,7 +87,7 @@ class CodegenAgent(Idea):
             return -1.0
         return 1.0
 
-    def run_idea(self, w_memory: WorkingMemory) -> IdeaResult:
+    def run_agent(self, w_memory: WorkingMemory) -> AgentResult:
         instruction = w_memory.extract_tag_contents("instruction")[0]
         available_variables = w_memory.extract_tag_contents("available_variables")
         if len(available_variables) == 0:
@@ -121,16 +121,16 @@ Then, wrapped by ```python and ```, output the new code that can fill the slot i
         """
         chat = Chat(prompt)
         code = chat.complete(parse="quotes", expensive=True)
-        idea_res = IdeaResult(self, True)
+        agent_res = AgentResult(self, True)
 
         if code.startswith("```"):
             code = Parse.quotes(code)
 
         code_item = CodeWMemoryItem(code, tag="attempted_code")
-        idea_res.add_new_wm_item(code_item)
-        idea_res.tags_to_remove = ["attempted_code",
+        agent_res.add_new_wm_item(code_item)
+        agent_res.tags_to_remove = ["attempted_code",
                                    "code_suggestion"]  # remove the old attempted code
-        return idea_res
+        return agent_res
 
 
 def get_code_from_wm(wm: WorkingMemory) -> str:
@@ -198,8 +198,8 @@ def init_translation_agent(module, document_folder: str = None):
 
     translation_agent = TranslationAgentGroup()
 
-    for idea in lt_memory.ideas:
-        translation_agent.translation_agents.add_idea(idea)
+    for agent in lt_memory.agents:
+        translation_agent.translation_agents.add_agent(agent)
     translation_agent.n_recall_items = 3
 
     moduler_var_table = VariableTable()
@@ -216,7 +216,7 @@ def init_translation_agent(module, document_folder: str = None):
 
 
 def build_code_ltm(module, document_paths: List[str] = None):
-    lt_memory = LongTermMemory()
+    lt_memory = AgentGroup()
     var_table = VariableTable()
 
     # Load the module root and scan for experiment classes

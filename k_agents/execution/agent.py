@@ -8,15 +8,13 @@ import numpy
 from IPython.core.display import display, HTML
 from mllm import Chat
 
-from k_agents.execution.stage_generation_2 import generate_stages
+from k_agents.execution.stage_generation import generate_stages, stages_to_html
 from k_agents.experiment.experiment import Experiment
 from k_agents.notebook_utils import display_chat, code_to_html, dict_to_html
 from k_agents.notebook_utils import show_spinner, hide_spinner
 from k_agents.execution import find_the_stage_label_based_on_description
 from k_agents.execution.stage_execution import check_if_needed_to_break_down, Stage, \
     get_exp_from_var_table
-from k_agents.execution.stage_generation import get_stages_from_instruction, \
-    stages_to_html
 from k_agents.execution.stage_transition import get_next_stage_label, \
     generate_parameter_patch
 from k_agents.translation.agent import get_codegen_wm
