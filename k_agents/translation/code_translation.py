@@ -49,18 +49,18 @@ You should output 4 sentences.
     return values
 
 
-def add_exp_to_ltm(lt_memory: AgentGroup, var_table: VariableTable,
+def add_exp_to_ltm(agent_group: AgentGroup, var_table: VariableTable,
                    exp_cls: Type[Any]) -> None:
     """
     Add an experiment class to the long term memory and variable table for the experiment class.
 
     Args:
-        lt_memory (AgentGroup): The long term memory .
+        agent_group (AgentGroup): The long term memory .
         var_table (VariableTable): The variable table.
-        exp_cls (Type[Any]): The experiment class to be added to lt_memory and var_table.
+        exp_cls (Type[Any]): The experiment class to be added to agent_group and var_table.
     """
     agent = ExpCodeTranslationAgent(exp_cls)
-    lt_memory.add_agent(agent)
+    agent_group.add_agent(agent)
     var_table.add_variable(exp_cls.__name__, exp_cls, exp_cls.__name__)
 
 

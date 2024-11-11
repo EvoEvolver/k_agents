@@ -1,5 +1,5 @@
 import os
-from typing import List, Type, Any
+from typing import List, Type, Any, Callable
 
 import numpy as np
 from fibers.data_loader.module_to_tree import get_tree_for_module
@@ -14,7 +14,7 @@ from k_agents.agent_group.agent_group import RetrievableAgent, AgentResult, Agen
 from k_agents.agent_group.w_memory import WorkingMemory, WMemoryItem
 from k_agents.translation.code_translation import add_exp_to_ltm
 from k_agents.translation.env import TranslationAgentEnv
-from k_agents.translation.procedure_translation import extract_procedures_to_lt_memory
+from k_agents.translation.procedure_translation import extract_procedures_to_agent_group
 from k_agents.variable_table import VariableTable
 
 
@@ -183,7 +183,7 @@ def get_var_table_prompt(var_table: VariableTable) -> str:
             lines.append(f"- VariableName: {name}: {type(obj)}")
     return "\n".join(lines)
 
-def init_translation_agent(module, document_folder: str = None):
+def init_translation_agents(module, document_folder: str = None, n_agents_to_call: int = 3):
     """
     Initialize the translation agent for the experiments
     """
@@ -194,13 +194,13 @@ def init_translation_agent(module, document_folder: str = None):
             if file.endswith(".md"):
                 document_paths.append(os.path.join(document_folder, file))
 
-    lt_memory, exp_var_table = build_code_ltm(module, document_paths)
+    agent_group, exp_var_table = build_code_ltm(module, document_paths)
 
     translation_agent = TranslationAgentGroup()
 
-    for agent in lt_memory.agents:
+    for agent in agent_group.agents:
         translation_agent.translation_agents.add_agent(agent)
-    translation_agent.n_recall_items = 3
+    translation_agent.n_recall_items = n_agents_to_call
 
     moduler_var_table = VariableTable()
     moduler_var_table.add_variable("np", np)
@@ -215,9 +215,11 @@ def init_translation_agent(module, document_folder: str = None):
     env.translation_var_table = translation_var_table
 
 
-def build_code_ltm(module, document_paths: List[str] = None):
-    lt_memory = AgentGroup()
+def build_code_ltm(module, document_paths: List[str] = None, is_ai_exp_class: Callable[[Type[Any]], bool] = None):
+    agent_group = AgentGroup()
     var_table = VariableTable()
+    if is_ai_exp_class is None:
+        is_ai_exp_class = lambda x: issubclass(x, Experiment)
 
     # Load the module root and scan for experiment classes
     module_root = get_tree_for_module(module)
@@ -226,18 +228,18 @@ def build_code_ltm(module, document_paths: List[str] = None):
     for node in module_root.iter_subtree_with_dfs():
         if get_type(node) == "class":
             class_obj = get_obj(node)
-            if not issubclass(class_obj, Experiment) or class_obj._experiment_result_analysis_instructions is None:
+            if not is_ai_exp_class(class_obj):
                 continue
             classes.append(class_obj)
 
     def _add_exp_to_ltm(exp_cls: Type[Any]):
-        add_exp_to_ltm(lt_memory, var_table, exp_cls)
+        add_exp_to_ltm(agent_group, var_table, exp_cls)
 
     p_map(_add_exp_to_ltm, [cls for cls in classes],
           title="Adding experiment to memory")
 
     document_paths = document_paths or []
     if len(document_paths) > 0:
-        extract_procedures_to_lt_memory(document_paths, lt_memory, var_table)
+        extract_procedures_to_agent_group(document_paths, agent_group, var_table)
 
-    return lt_memory, var_table
+    return agent_group, var_table

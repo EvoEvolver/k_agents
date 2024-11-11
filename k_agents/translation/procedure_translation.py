@@ -199,11 +199,11 @@ def get_exp_class(procedure):
     return exp_runner
 
 
-def extract_procedures_to_lt_memory(markdown_paths: list[str], lt_memory, var_table):
+def extract_procedures_to_agent_group(markdown_paths: list[str], agent_group, var_table):
     all_procedures = []
     for markdown_path in markdown_paths:
         procedures = extract_procedure_contents(markdown_path)
         all_procedures.extend(procedures)
     for procedure, agent in p_map(generate_agent_from_procedure, all_procedures):
         var_table.add_variable(agent.label, get_exp_class(procedure))
-        lt_memory.add_agent(agent)
+        agent_group.add_agent(agent)

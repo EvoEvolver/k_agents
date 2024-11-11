@@ -410,6 +410,9 @@ def AutoRun(instruction, **kwargs):
     exp = AutomatedExperiment(instruction, kwargs)
     return exp
 
+def execute_procedure(instruction, **kwargs):
+    exp = AutomatedExperiment(instruction, kwargs)
+    return exp
 
 def execute_experiment_from_instruction(instruction: str, **kwargs):
     """
