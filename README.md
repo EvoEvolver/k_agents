@@ -61,3 +61,10 @@ class SomeActionInLab(Experiment):
         return report
 
 ```
+
+
+# Examples
+
+We have applied this framework to calibrate quantum computers!
+
+More examples of usage available at https://github.com/ShuxiangCao/LeeQ/tree/k_agents/leeq/experiments/builtin/basic/calibrations
