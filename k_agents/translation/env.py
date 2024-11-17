@@ -13,6 +13,6 @@ class TranslationAgentEnv(Singleton):
 
     def __init__(self):
         if not self._initialized:
-            self.translation_agent: TranslationAgentGroup = None
+            self.translation_agents: TranslationAgentGroup = None
             self.translation_var_table: VariableTable = None
         super().__init__()

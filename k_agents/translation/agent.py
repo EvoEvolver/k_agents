@@ -12,7 +12,8 @@ from k_agents.experiment.experiment import Experiment
 from k_agents.agent_group.code_wmemory import CodeWMemoryItem
 from k_agents.agent_group.agent_group import RetrievableAgent, AgentResult, AgentGroup, AgentGroupResult
 from k_agents.agent_group.w_memory import WorkingMemory, WMemoryItem
-from k_agents.translation.code_translation import add_exp_to_ltm
+from k_agents.translation.code_translation import add_exp_to_agent_group, \
+    add_exp_to_var_table
 from k_agents.translation.env import TranslationAgentEnv
 from k_agents.translation.procedure_translation import extract_procedures_to_agent_group
 from k_agents.variable_table import VariableTable
@@ -183,7 +184,7 @@ def get_var_table_prompt(var_table: VariableTable) -> str:
             lines.append(f"- VariableName: {name}: {type(obj)}")
     return "\n".join(lines)
 
-def init_translation_agents(module, document_folder: str = None, n_agents_to_call: int = 3):
+def init_translation_agents(module, document_folder: str = None, n_agents_to_call: int = 3, lambda_ai_exp_class=None, add_class_to_var_table=None):
     """
     Initialize the translation agent for the experiments
     """
@@ -194,13 +195,13 @@ def init_translation_agents(module, document_folder: str = None, n_agents_to_cal
             if file.endswith(".md"):
                 document_paths.append(os.path.join(document_folder, file))
 
-    agent_group, exp_var_table = build_code_ltm(module, document_paths)
+    agent_group, exp_var_table = build_code_trans_agents(module, document_paths, lambda_ai_exp_class, add_class_to_var_table)
 
-    translation_agent = TranslationAgentGroup()
+    translation_agents = TranslationAgentGroup()
 
     for agent in agent_group.agents:
-        translation_agent.translation_agents.add_agent(agent)
-    translation_agent.n_recall_items = n_agents_to_call
+        translation_agents.translation_agents.add_agent(agent)
+    translation_agents.n_recall_items = n_agents_to_call
 
     moduler_var_table = VariableTable()
     moduler_var_table.add_variable("np", np)
@@ -210,16 +211,18 @@ def init_translation_agents(module, document_folder: str = None, n_agents_to_cal
     translation_var_table.add_parent_table(exp_var_table)
     translation_var_table.add_parent_table(moduler_var_table)
 
-    env = TranslationAgentEnv()
-    env.translation_agent = translation_agent
-    env.translation_var_table = translation_var_table
+    return translation_agents, translation_var_table
 
 
-def build_code_ltm(module, document_paths: List[str] = None, is_ai_exp_class: Callable[[Type[Any]], bool] = None):
+
+
+def build_code_trans_agents(module, document_paths: List[str] = None, is_ai_exp_class: Callable[[Type[Any]], bool] = None, _add_class_to_var_table=None):
     agent_group = AgentGroup()
     var_table = VariableTable()
     if is_ai_exp_class is None:
         is_ai_exp_class = lambda x: issubclass(x, Experiment)
+    if _add_class_to_var_table is None:
+        _add_class_to_var_table = add_exp_to_var_table
 
     # Load the module root and scan for experiment classes
     module_root = get_tree_for_module(module)
@@ -232,10 +235,11 @@ def build_code_ltm(module, document_paths: List[str] = None, is_ai_exp_class: Ca
                 continue
             classes.append(class_obj)
 
-    def _add_exp_to_ltm(exp_cls: Type[Any]):
-        add_exp_to_ltm(agent_group, var_table, exp_cls)
+    def _add_exp_to_agent_group(exp_cls: Type[Any]):
+        add_exp_to_agent_group(agent_group, exp_cls)
+        _add_class_to_var_table(var_table, exp_cls)
 
-    p_map(_add_exp_to_ltm, [cls for cls in classes],
+    p_map(_add_exp_to_agent_group, [cls for cls in classes],
           title="Adding experiment to memory")
 
     document_paths = document_paths or []

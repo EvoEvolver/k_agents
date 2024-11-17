@@ -56,7 +56,7 @@ class ExecutionAgent:
         self.max_step_per_stage = 6
 
         trans_env = TranslationAgentEnv()
-        self.translation_agent = trans_env.translation_agent
+        self.translation_agent = trans_env.translation_agents
         self.translation_var_table = trans_env.translation_var_table
         assert self.translation_agent is not None, "Translation agent has not been initialized."
 
@@ -434,7 +434,7 @@ def execute_experiment_from_instruction(instruction: str, **kwargs):
     spinner_id = show_spinner(f"Interpreting experiment...")
 
     translation_agent_env = TranslationAgentEnv()
-    translation_agent = translation_agent_env.translation_agent
+    translation_agent = translation_agent_env.translation_agents
     translation_var_table = translation_agent_env.translation_var_table
 
     input_var_table = VariableTable.from_dict(kwargs)

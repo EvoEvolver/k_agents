@@ -12,9 +12,8 @@ from k_agents.notebook_utils import show_spinner, hide_spinner
 class Experiment:
     _experiment_result_analysis_instructions = None
     _rewrite_json_requirement = False
-    decorate_run = True
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
         self._ai_inspection_results = {}
         self._ai_inspection_summary = None
 
@@ -28,29 +27,17 @@ class Experiment:
         # warp the run method as _run using functools.wraps
         self.bare_run = self.run
         self.bare_run_simulated = self.run_simulated
-        if self.decorate_run:
-            self._decorate_run()
-
-    def _decorate_run(self):
-        self.run = self._run
-        self.run_simulated = self._run_simulated
 
     def _run(self, *args, **kwargs):
         self._before_run(args, kwargs)
         try:
             if self.is_simulation:
-                self.bare_run_simulated(*args, **kwargs)
+                self.run_simulated(*args, **kwargs)
             else:
-                self.bare_run(*args, **kwargs)
+                self.run(*args, **kwargs)
         finally:
             self._post_run(args, kwargs)
-
-    def _run_simulated(self, *args, **kwargs):
-        self._before_run(args, kwargs)
-        try:
-            self.bare_run_simulated(*args, **kwargs)
-        finally:
-            self._post_run(args, kwargs)
+        return self
 
     def run_simulated(self, *args, **kwargs):
         """
@@ -77,8 +64,6 @@ class Experiment:
         """
         Post run method to be called after the experiment is run.
         """
-        # if self.to_run_ai_inspection:
-        #    self.run_ai_inspection()
         ...
 
     def _get_run_args_dict(self):
