@@ -52,16 +52,16 @@ def extract_parameters(description) -> dict:
 Your objective is to extract the parameters from a given description of an experiment.
 </objective>
 <description>
-{json.dumps(description, indent=1)}
+{description["instruction"]}
 </description>
 <requirement>
 You are required to extract parameters of the experiment from the given description.
 However, non-experimental parameters, such as the number of retries, should not be extracted.
 You are required to put the unit of the parameter in its name instead of the value.
 For example:
-"Do experiment A with frequency offset 10MHz and amplitude=`amplitude` and duration=10us. If failed, retry 3 times."
+"Do experiment A with frequency offset 10MHz and amplitude=`amplitude` and duration=10us."
 should be extracted as:
-"Do experiment A with frequency_offset=`frequency_offset` and amplitude=`amplitude` and duration. If failed, retry 3 times."
+"Do experiment A with frequency_offset=`frequency_offset` and amplitude=`amplitude` and duration."
 and
 {{
     "frequency_offset_in_MHz": 10,
@@ -71,8 +71,8 @@ and
 </requirement>
 <output_format>
 You are required to output a JSON dict with the following keys:
-"new_description" (dict): The description with the parameters replaced by placeholders. The dict must in the same format as the input description.
-"parameters" (dict): The extracted parameters in a dict. the key of the dict must be a valid variable name in Python.
+"new_description" (str): The description with the parameters replaced by placeholders.
+"parameters" (dict): The extracted parameters in a dict. the key of the dict must be a valid variable name in Python. the dict can be empty if no parameter is extracted.
 """
 
     completed_prompt = prompt
@@ -139,18 +139,20 @@ def generate_stages(description):
     raw_stages = attach_next_stage_guide(raw_stages, description)
     del raw_stages["Complete"]
     del raw_stages["Failed"]
-    raw_stages_with_parameters = []
+    stage_desc_with_parameters = []
     parameters_list = []
     for s, res in p_map(extract_parameters, raw_stages.values()):
-        raw_stages_with_parameters.append(res["new_description"])
+        stage_desc_with_parameters.append(res["new_description"])
         parameters = res["parameters"]
         number_parameters = {}
         for key, value in parameters.items():
             if isinstance(value, (int, float, bool)):
                 number_parameters[key] = value
         parameters_list.append(number_parameters)
+    for i, raw_stage in enumerate(raw_stages.values()):
+        raw_stage["instruction"] = stage_desc_with_parameters[i]
     stages = []
-    for i, raw_stage in enumerate(raw_stages_with_parameters):
+    for i, raw_stage in enumerate(raw_stages.values()):
         stage = Stage(label=f"Stage{i+1}", title=stage_titles[i],
                       description=raw_stage["instruction"],
                       next_stage_guide=raw_stage["next_stage_guide"])

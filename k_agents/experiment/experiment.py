@@ -40,15 +40,9 @@ class Experiment:
         return self
 
     def run_simulated(self, *args, **kwargs):
-        """
-        Run the experiment in simulation mode. This is useful for debugging.
-        """
         raise NotImplementedError()
 
     def run(self, *args, **kwargs):
-        """
-        The main experiment script. Should be decorated by `labchronicle.log_and_record` to log the experiment.
-        """
         raise NotImplementedError()
 
     def _before_run(self, args, kwargs):
@@ -99,10 +93,10 @@ class Experiment:
     def _summarize_inspection_results(self, ai_inspection_results: Dict[str, Dict]):
         # Summarize the AI inspection results based on the experiment result analysis instructions.
 
-        assert self._experiment_result_analysis_instructions is not None, "The experiment result analysis instructions are not defined."
+        #assert self._experiment_result_analysis_instructions is not None, "The experiment result analysis instructions are not defined."
         arg_dict = _rebuild_args_dict(self.run, self.run_args, self.run_kwargs)
 
-        if len(self._experiment_result_analysis_instructions) == 0:
+        if not self._experiment_result_analysis_instructions:
             analysis_instruction_prompt = ""
         else:
             analysis_instruction_prompt = f"<analysis_instructions>\n{self._experiment_result_analysis_instructions}\n</analysis_instructions>"
@@ -250,8 +244,9 @@ def _rebuild_args_dict(
     mapped_args = {}
 
     # Remove "self" from the parameters if it's a class method
-    if parameters[0].name == "self" or parameters[0].name == "cls":
-        parameters = parameters[1:]
+    if len(parameters) > 0:
+        if parameters[0].name == "self" or parameters[0].name == "cls":
+            parameters = parameters[1:]
 
     # First, populate with defaults and arguments provided
     for param in parameters:

@@ -192,18 +192,6 @@ class AgentGroup:
         agent_list.extend(must_trigger_agent)
         return agent_list
 
-    def save_memory(self, save_path):
-        with open(save_path, 'wb') as f:
-            dill.dump(self, f)
-
-    @staticmethod
-    def load_memory(load_path):
-        # if not exists, return None
-        if not os.path.exists(load_path):
-            return None
-        with open(load_path, 'rb') as f:
-            agent_group = dill.load(f)
-        return agent_group
 
     #@standard_multi_attempts
     def recall_by_wm(self, w_memory: WorkingMemory, top_k=5) -> AgentGroupResult:

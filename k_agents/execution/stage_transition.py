@@ -36,7 +36,7 @@ def generate_parameter_patch(stage_jumped_to: Stage, inspection_result) -> dict:
     Using the experiment report provided, decide whether you need to updated parameters for this stage. 
     If so, provide how to update the parameters.
     Response in JSON with the following keys:
-    "analysis" (string): an analysis about whether the parameters need to be updated and how to update them if needed.
+    "analysis" (string): an analysis about whether the parameters need to be updated and how to update them if needed. The parameter update is needed only when it is mentioned in the report.
     "to_update" (bool): whether the parameters need to be updated.
     "parameter_patch" (dict):  a dict that describes how to update the parameters. The keys should be the variable names and the values should be the new values. If a parameter is not updated, it should not be included in the dict.
     </requirements>
