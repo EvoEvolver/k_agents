@@ -184,7 +184,7 @@ def get_var_table_prompt(var_table: VariableTable) -> str:
             lines.append(f"- VariableName: {name}: {type(obj)}")
     return "\n".join(lines)
 
-def init_translation_agents(module, document_folder: str = None, n_agents_to_call: int = 3, lambda_ai_exp_class=None, add_class_to_var_table=None):
+def prepare_translation_agents(module, document_folder: str = None, n_agents_to_call: int = 3, lambda_ai_exp_class=None, add_class_to_var_table=None):
     """
     Initialize the translation agent for the experiments
     """
@@ -213,7 +213,11 @@ def init_translation_agents(module, document_folder: str = None, n_agents_to_cal
 
     return translation_agents, translation_var_table
 
-
+def init_translation_agents(module, n_agents_to_call: int = 3, document_folder: str = None):
+    translation_agents, translation_var_table = prepare_translation_agents(module, document_folder, n_agents_to_call)
+    env = TranslationAgentEnv()
+    env.translation_agents = translation_agents
+    env.translation_var_table = translation_var_table
 
 
 def build_code_trans_agents(module, document_paths: List[str] = None, is_ai_exp_class: Callable[[Type[Any]], bool] = None, _add_class_to_var_table=None):
