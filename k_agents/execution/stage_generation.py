@@ -72,7 +72,7 @@ and
 <output_format>
 You are required to output a JSON dict with the following keys:
 "new_description" (dict): The description with the parameters replaced by placeholders. The dict must in the same format as the input description.
-"parameters" (dict): The extracted parameters.
+"parameters" (dict): The extracted parameters in a dict. the key of the dict must be a valid variable name in Python.
 """
 
     completed_prompt = prompt
