@@ -60,8 +60,6 @@ By your knowledge, there is an existing instruction that is available
 </knowledge>
 <requirements>
 You are required to output a JSON dict with the following keys
-- "experiment_name_from_knowledge" (string): The name of the experiment
-- "experiment_name_from_input" (string): The name of the experiment in the input_instruction
 - "parameter_specification" (string): The specification of the parameters of the input_instruction 
 - "analysis" (string): An analysis of the relation between the input_instruction and your knowledge. You should notice that your knowledge is likely to be improper if the experiment name contains different keywords. However, the parameter_specification of the experiment can be different.
 - "proper" (bool): Whether the input_instruction can be regarded as a proper instance of the experiment in your knowledge.

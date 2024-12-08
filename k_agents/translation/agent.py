@@ -73,6 +73,36 @@ class TranslationAgentGroup:
         if len(code) > 0:
             return code[0]
 
+def filter_code_suggestion(w_memory: WorkingMemory, instruction):
+    code_suggestions = w_memory.extract_tag_contents("code_suggestion")
+    code_suggestions = ["<code_suggestion>\n" + suggestion + "\n</code_suggestion>\n"
+                        for suggestion in
+                        code_suggestions]
+    code_suggestions = "".join(code_suggestions)
+    prompt = f"""
+    You are required to analyze which code suggestion is most suitable for implementing a instrcution.
+    <instruction>
+    {instruction}
+    </instruction>
+    <code_suggestions>
+    {code_suggestions}
+    </code_suggestions>
+    <requirements>
+    - The most suitable code suggestion should be the one that can be used to implement the instruction.
+    - If multiple code suggestions are suitable, you should pick the suggestion that matches most keywords to the instruction.
+    - You must only analyze the code suggestions and not generate any new code by yourself.
+    </requirements>
+    <output>
+    You are required to output a JSON dict with the following keys:
+    - "analysis1" (string): An analysis of which code suggestion is suitable for implementing the instruction.
+    - "analysis2" (string): An analysis of which code suggestion is most suitable for implementing the instruction based on the keywords.
+    - "suggestion" (string): a copy of a single code suggestion that is most suitable for implementing the instruction. 
+    </output>
+    """
+    chat = Chat(prompt, dedent=True)
+    res = chat.complete(parse="dict", expensive=True)
+    return res["suggestion"]
+
 
 class CodegenAgent(RetrievableAgent):
     """
@@ -95,11 +125,7 @@ class CodegenAgent(RetrievableAgent):
             available_variables = "There is no available variables"
         else:
             available_variables = available_variables[0]
-        code_suggestions = w_memory.extract_tag_contents("code_suggestion")
-        code_suggestions = ["<code_suggestion>\n" + suggestion + "\n</code_suggestion>\n"
-                            for suggestion in
-                            code_suggestions]
-        code_suggestions = "".join(code_suggestions)
+        code_suggestion_filtered = filter_code_suggestion(w_memory, instruction)
         prompt = f"""
 Your task is to generate new code for the context described below.        
 <context>
@@ -109,15 +135,18 @@ Your task is to generate new code for the context described below.
 <code_to_complete> 
 # [slot: {instruction}]
 </code_to_complete>
-You must use the following code_suggestions to generate the code:
-{code_suggestions}
+<code_suggestion>
+You must use the following code_suggestion to generate the code:
+{code_suggestion_filtered}
+</code_suggestion>
 </context>
 <requirements>
-You are required to adopt code from one of <code_suggestion> that can be used to fill the slot in <code_to_complete>.
+You are required to adopt code from <code_suggestion> that can be used to fill the slot in <code_to_complete>.
 - The adopted code should absolutely just be what should appear in the place of # [slot]. 
-- Some of the <code_suggestion> might be misleading. But you must pick the most relevant one.
-You should first output an analysis of which code suggestion should be used to fill the slot in <code_to_complete>.
-Then, wrapped by ```python and ```, output the new code that can fill the slot in <code_to_complete>. The last line of the generated code must be in the format: `experiment_<ExperimentName> = <ExperimentName>(argument1,argument2, ...)`. The code must be executable. No placeholders are allowed. No import statements are allowed.
+- If the code from the suggestion is not executable due to Python syntax error, you should rewrite it to make it executable.
+- You should first output an analysis of the code suggestion.
+- Then, wrapped by ```python and ```, output the new code that can fill the slot in <code_to_complete>. The last line of the generated code must be in the format: `experiment_<ExperimentName> = <ExperimentName>(argument1,argument2, ...)`.
+ - The code must be executable. No placeholders are allowed. No import statements are allowed.
 </requirements>
         """
         chat = Chat(prompt)
