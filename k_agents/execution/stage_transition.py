@@ -65,12 +65,12 @@ def get_next_stage_label(current_stage: Stage, experiment_result: dict[str, str]
         the next stage.
     """
     rules = current_stage.next_stage_guide
-
-    if experiment_result['success']:
-        current_stage.n_failed = 0
-        current_stage.n_success += 1
-    else:
-        current_stage.n_failed += 1
+    if "success" in experiment_result:
+        if experiment_result['success']:
+            current_stage.n_failed = 0
+            current_stage.n_success += 1
+        else:
+            current_stage.n_failed += 1
     current_stage.n_executed += 1
 
     result_prompt = ""

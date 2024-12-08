@@ -127,8 +127,11 @@ class ExecutionAgent:
             self.history_inspections.append(inspection_result)
 
             experiment_analysis_html = dict_to_html(inspection_result)
-            color = 'light_green' if inspection_result[
-                'success'] else 'light_red'
+            if "success" in inspection_result:
+                color = 'light_green' if inspection_result[
+                    'success'] else 'light_red'
+            else:
+                color = 'light_blue'
             agent_message_box(
                 f"Experiment analysis results are as follows:<br>{experiment_analysis_html}",
                 color=color)
