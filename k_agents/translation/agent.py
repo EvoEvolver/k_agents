@@ -23,7 +23,7 @@ class TranslationAgentGroup:
 
     def __init__(self):
         self.translation_agents = AgentGroup()
-        self.codegen_agent = CodegenAgent()
+        self.codegen_agent = CodegenAgentUltraFiltered()
         self.n_recall_items = 10
         self._cached_recall_res = None
 
@@ -73,6 +73,68 @@ class TranslationAgentGroup:
         if len(code) > 0:
             return code[0]
 
+
+class CodegenAgent(RetrievableAgent):
+    """
+    Generate the code based on the working memory
+    Will put the generated code in the working memory
+    """
+
+    def __init__(self):
+        super().__init__("CodegenAgent")
+
+    def get_score(self, w_memory: WorkingMemory):
+        if not w_memory.has_tag("code_suggestion"):
+            return -1.0
+        return 1.0
+
+    def run_agent(self, w_memory: WorkingMemory) -> AgentResult:
+        instruction = w_memory.extract_tag_contents("instruction")[0]
+        available_variables = w_memory.extract_tag_contents("available_variables")
+        if len(available_variables) == 0:
+            available_variables = "There is no available variables"
+        else:
+            available_variables = available_variables[0]
+        code_suggestions = w_memory.extract_tag_contents("code_suggestion")
+        code_suggestions = [
+            "<code_suggestion>\n" + suggestion + "\n</code_suggestion>\n"
+            for suggestion in
+            code_suggestions]
+        code_suggestions = "".join(code_suggestions)
+        prompt = f"""
+Your task is to generate new code for the context described below.        
+<context>
+<available_variables>
+{available_variables}
+</available_variables>
+<code_to_complete> 
+# [slot: {instruction}]
+</code_to_complete>
+You must use the following code_suggestions to generate the code:
+{code_suggestions}
+</context>
+<requirements>
+You are required to adopt code from one of <code_suggestion> that can be used to fill the slot in <code_to_complete>.
+- The adopted code should absolutely just be what should appear in the place of # [slot]. 
+- Some of the <code_suggestion> might be misleading. But you must pick the most relevant one.
+You should first output an analysis of which code suggestion should be used to fill the slot in <code_to_complete>.
+Then, wrapped by ```python and ```, output the new code that can fill the slot in <code_to_complete>. The last line of the generated code must be in the format: `experiment_<ExperimentName> = <ExperimentName>(argument1,argument2, ...)`. The code must be executable. No placeholders are allowed. No import statements are allowed.
+</requirements>
+        """
+        chat = Chat(prompt)
+        code = chat.complete(parse="quotes", expensive=True)
+        agent_res = AgentResult(self, True)
+
+        if code.startswith("```"):
+            code = Parse.quotes(code)
+
+        code_item = CodeWMemoryItem(code, tag="attempted_code")
+        agent_res.add_new_wm_item(code_item)
+        agent_res.tags_to_remove = ["attempted_code",
+                                    "code_suggestion"]  # remove the old attempted code
+        return agent_res
+
+
 def filter_code_suggestion(w_memory: WorkingMemory, instruction):
     code_suggestions = w_memory.extract_tag_contents("code_suggestion")
     code_suggestions = ["<code_suggestion>\n" + suggestion + "\n</code_suggestion>\n"
@@ -104,19 +166,8 @@ def filter_code_suggestion(w_memory: WorkingMemory, instruction):
     return res["suggestion"]
 
 
-class CodegenAgent(RetrievableAgent):
-    """
-    Generate the code based on the working memory
-    Will put the generated code in the working memory
-    """
+class CodegenAgentUltraFiltered(CodegenAgent):
 
-    def __init__(self):
-        super().__init__("CodegenAgent")
-
-    def get_score(self, w_memory: WorkingMemory):
-        if not w_memory.has_tag("code_suggestion"):
-            return -1.0
-        return 1.0
 
     def run_agent(self, w_memory: WorkingMemory) -> AgentResult:
         instruction = w_memory.extract_tag_contents("instruction")[0]
