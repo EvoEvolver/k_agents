@@ -1,7 +1,6 @@
 # k_agents
 
 Knowledge agents for lab automation.
-> The project is still under construction! Star us to see when it is finished.
 
 ![img.png](assets/img.png)
 
@@ -28,6 +27,9 @@ Here we show how the users can inject knowledge into the AI.
 from k_agents.experiment import Experiment
 class SomeActionInLab(Experiment):
     def run(self):
+        """
+        documenation of the experiment
+        """
         # do something in the lab
         ...
 ```
@@ -62,9 +64,23 @@ class SomeActionInLab(Experiment):
 
 ```
 
+# Application to superconducting qubit calibration
 
-# Examples
+The k-agents framework has been applied to calibrate superconducting quantum gates
 
-We have applied this framework to calibrate quantum computers!
+## Indexing experiments
 
-More examples of usage available at https://github.com/ShuxiangCao/LeeQ/tree/k_agents/leeq/experiments/builtin/basic/calibrations
+Experiments:
+
+https://github.com/ShuxiangCao/LeeQ/tree/k_agents/leeq/experiments/builtin/basic/calibrations
+
+Procedures:
+
+https://github.com/ShuxiangCao/LeeQ/tree/main/leeq/experiments/procedures
+
+
+## Notebook for calibration (tune-up)
+
+https://github.com/ShuxiangCao/LeeQ/blob/main/notebooks/Agent/SingleQubitTuneUp.ipynb
+
+https://github.com/ShuxiangCao/LeeQ/blob/main/notebooks/Agent/TwoQubitTuneUp.ipynb
