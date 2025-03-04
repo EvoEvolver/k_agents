@@ -1,10 +1,32 @@
 import uuid
 
+import mllm.utils.maps
 from IPython.core.display import Javascript
-from IPython.display import display, HTML
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import PythonLexer
+from IPython.display import display, HTML
+
+display_impl = print
+
+def set_jupyter_display_impl():
+    global display_impl
+    display_impl = display
+
+# check if in the Jupyter notebook
+try:
+    from IPython import get_ipython
+    if get_ipython():
+        set_jupyter_display_impl()
+except:
+    pass
+
+def set_streamlit_display_impl():
+    global display_impl
+    from streamlit import html
+    from stqdm import stqdm
+    mllm.utils.maps.default_parallel_map_config["pbar"] = stqdm
+    display_impl = html
 
 
 def show_spinner(text="Processing..."):
@@ -17,20 +39,7 @@ def show_spinner(text="Processing..."):
     Returns:
     str: A unique identifier for the spinner element.
     """
-    # Generate a unique identifier for the spinner
-    spinner_id = str(uuid.uuid4())
-
-    # Create and display the spinner HTML element
-    spinner_html = HTML(f"""
-    <div id="{spinner_id}" style="font-size:16px;">
-        <i class="fa fa-spinner fa-spin"></i> {text}
-    </div>
-    """)
-    display(spinner_html)
-
-    # Return the unique ID for future reference (e.g., to hide the spinner)
-    return spinner_id
-
+    ...
 
 def hide_spinner(spinner_id):
     """
@@ -39,22 +48,7 @@ def hide_spinner(spinner_id):
     Args:
     spinner_id (str): The unique identifier of the spinner to hide.
     """
-    # Create and execute JavaScript to hide and remove the spinner element
-    hide_spinner_js = Javascript(f"""
-    var spinnerElement = document.getElementById('{spinner_id}');
-    if (spinnerElement) {{
-        spinnerElement.remove();  // Remove the spinner element from the DOM
-    }} else {{
-        // Retry removing the spinner after a short delay if not immediately found
-        window.setTimeout(() => {{
-            var spinnerElement = document.getElementById('{spinner_id}');
-            if (spinnerElement) {{
-                spinnerElement.remove();
-            }}
-        }}, 100);
-    }}
-    """)
-    display(hide_spinner_js)
+    ...
 
 
 class Spinner:
@@ -141,7 +135,7 @@ def code_to_html(code: str):
 """
 
 
-def display_chat(agent_name: str, background_color: str, content: str):
+def display_chat(agent_name: str, content: str, background_color: str = "light_blue"):
     """
     Display a chat message formatted with the given parameters.
 
@@ -182,4 +176,4 @@ def display_chat(agent_name: str, background_color: str, content: str):
         <strong>{agent_name}:</strong> {content}
     </p>
     '''
-    display(HTML(html))
+    display_impl(HTML(html))

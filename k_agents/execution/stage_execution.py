@@ -1,6 +1,7 @@
 from typing import Optional
 
 from k_agents.experiment.experiment import Experiment
+from k_agents.io_interface import display_impl
 from k_agents.variable_table import VariableTable
 
 import mllm
@@ -43,14 +44,14 @@ class Stage:
         First converts the stage to a dictionary into a markdown format.
         then display it using IPython
         """
-        from IPython.display import display, Markdown
+        from IPython.display import Markdown
 
         stage_markdown = f"""##{self.title}
         **Label**: {self.label}
         **Description**: {self.description}
         **Next Stage Guide**: {self.next_stage_guide}
         """
-        display(Markdown(stage_markdown))
+        display_impl(Markdown(stage_markdown))
 
 
 def get_exp_from_var_table(var_table: VariableTable) -> Optional[Experiment]:

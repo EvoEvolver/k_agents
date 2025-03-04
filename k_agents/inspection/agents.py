@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from k_agents.inspection.vlms import matplotlib_plotly_to_pil, run_visual_inspection
-from k_agents.notebook_utils import show_spinner, hide_spinner, dict_to_html, display_chat
+from k_agents.io_interface import show_spinner, hide_spinner, dict_to_html, display_chat
 
 if TYPE_CHECKING:
     from k_agents.experiment import Experiment
@@ -30,8 +30,7 @@ class TextInspectionAgent(InspectionAgent):
         if 'success' in res:
             color = 'light_green' if res['success'] else 'light_red'
         html = dict_to_html(res)
-        display_chat(agent_name=f"Inspection Agent",
-                     content='<br>' + html,
+        display_chat(agent_name=f"Inspection Agent", content='<br>' + html,
                      background_color=color)
         return res
 
@@ -52,8 +51,7 @@ class VisualInspectionAgent(InspectionAgent):
         if inspect_answer is not None:
             color = 'light_green' if inspect_answer['success'] else 'light_red'
             html = dict_to_html(inspect_answer)
-            display_chat(agent_name=f"Inspection Agent",
-                         content='<br>' + html,
+            display_chat(agent_name=f"Inspection Agent", content='<br>' + html,
                          background_color=color)
 
         self.save_figure_to_exp(exp, figure_obj, image)

@@ -6,7 +6,7 @@ from mllm import Chat
 
 from k_agents.inspection.agents import InspectionAgent
 from k_agents.inspection.vlms import matplotlib_plotly_to_pil
-from k_agents.notebook_utils import show_spinner, hide_spinner
+from k_agents.io_interface import show_spinner, hide_spinner
 
 
 class Experiment:

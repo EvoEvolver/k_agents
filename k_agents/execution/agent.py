@@ -5,13 +5,13 @@ import warnings
 from typing import Dict, Any, List, TYPE_CHECKING
 
 import numpy
-from IPython.core.display import display, HTML
+from IPython.core.display import HTML
 from mllm import Chat
 
 from k_agents.execution.stage_generation import generate_stages, stages_to_html
 from k_agents.experiment.experiment import Experiment
-from k_agents.notebook_utils import display_chat, code_to_html, dict_to_html
-from k_agents.notebook_utils import show_spinner, hide_spinner
+from k_agents.io_interface import display_chat, code_to_html, dict_to_html, display_impl
+from k_agents.io_interface import show_spinner, hide_spinner
 from k_agents.execution import find_the_stage_label_based_on_description
 from k_agents.execution.stage_execution import check_if_needed_to_break_down, Stage, \
     get_exp_from_var_table
@@ -199,7 +199,7 @@ def find_next_stage(stages, next_stage_label):
 
 
 def agent_message_box(content, color='light_blue'):
-    display_chat("Execution Agent", color, content)
+    display_chat("Execution Agent", content, color)
 
 
 def make_var_table(translation_var_table, kwargs):
@@ -226,7 +226,7 @@ def run_stage_description(stage: 'Stage', translation_agent, runtime_var_table,
     spinner_id = show_spinner(f"Executing {stage.label}: {stage.title}...")
 
     stage_html = stages_to_html([stage])
-    display(HTML(stage_html))
+    display_impl(HTML(stage_html))
 
     if sub_experiment:
         single_step = True
@@ -237,8 +237,9 @@ def run_stage_description(stage: 'Stage', translation_agent, runtime_var_table,
 
     if not single_step:
         hide_spinner(spinner_id)
-        display_chat("Stage Planning AI", 'light_blue',
-                     f"Stage {stage.label} is too complex to be processed in one step. Planning to break down the stage into smaller steps. {breakdown_requirement['reason']}.")
+        display_chat("Stage Planning AI",
+                     f"Stage {stage.label} is too complex to be processed in one step. Planning to break down the stage into smaller steps. {breakdown_requirement['reason']}.",
+                     'light_blue')
         exp = AutomatedExperiment(stage.description, runtime_var_table.variable_objs)
         new_var_table = runtime_var_table.new_child_table()
         new_var_table.add_variable("exp", exp)
@@ -270,8 +271,9 @@ def run_stage_description(stage: 'Stage', translation_agent, runtime_var_table,
     hide_spinner(spinner_id)
     code_html = code_to_html(codes)
     desc_in_prompt = html.escape(stage.description)
-    display_chat("Execution agent", 'light_purple',
-                 f"Here is the generated code for {desc_in_prompt}:<br>{code_html}")
+    display_chat("Execution agent",
+                 f"Here is the generated code for {desc_in_prompt}:<br>{code_html}",
+                 'light_purple')
     err = False
     try:
         new_var_table.interpret(codes)
@@ -280,8 +282,9 @@ def run_stage_description(stage: 'Stage', translation_agent, runtime_var_table,
         import traceback
         traceback.print_exc()
         exception_html = html.escape(traceback.format_exc())
-        display_chat("Execution agent", 'light_red',
-                     f"Error occurred when interpreting the code:<br>{exception_html}")
+        display_chat("Execution agent",
+                     f"Error occurred when interpreting the code:<br>{exception_html}",
+                     'light_red')
         err = True
         return None, True
 
@@ -454,7 +457,7 @@ def execute_experiment_from_instruction(instruction: str, **kwargs):
 
     hide_spinner(spinner_id)
     code_html = code_to_html(codes)
-    display_chat("Execution agent (generating code)", 'light_purple',
-                 f"Here is the generated code:<br>{code_html}")
+    display_chat("Execution agent (generating code)",
+                 f"Here is the generated code:<br>{code_html}", 'light_purple')
     new_var_table.interpret(codes)
     return new_var_table
