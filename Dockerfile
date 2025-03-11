@@ -2,8 +2,8 @@ FROM python:3.10
 WORKDIR /app
 COPY . .
 
-RUN pip install -r requirements.txt
 RUN pip install git+https://github.com/ShuxiangCao/LeeQ.git
+RUN pip install streamlit
 
 EXPOSE 8080
 
