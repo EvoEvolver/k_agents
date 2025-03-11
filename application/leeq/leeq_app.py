@@ -18,7 +18,7 @@ if "agent_env" not in st.session_state:
 
 if "variables" not in st.session_state:
     qubit_1, qubit_2 = get_virtual_qubit_pair()
-    ExperimentManager().status().set_param("Plot_Result_In_Jupyter", True)
+    ExperimentManager().status().set_param("Plot_Result_In_Jupyter", False)
     st.session_state["variables"] = {"dut_1": qubit_1, "dut_2": qubit_2, "duts": (qubit_1, qubit_2)}
 
 if "suggested_procedure" not in st.session_state:

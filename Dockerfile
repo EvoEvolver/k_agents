@@ -4,6 +4,7 @@ COPY . .
 
 RUN pip install git+https://github.com/ShuxiangCao/LeeQ@k_agents
 RUN pip install streamlit
+RUN pip install stqdm
 
 EXPOSE 8080
 
