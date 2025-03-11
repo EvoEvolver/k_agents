@@ -2,7 +2,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from k_agents.inspection.vlms import matplotlib_plotly_to_pil, run_visual_inspection
-from k_agents.io_interface import show_spinner, hide_spinner, dict_to_html, display_chat
+from k_agents.io_interface import show_spinner, hide_spinner, dict_to_html, display_chat, \
+    display_image
 
 if TYPE_CHECKING:
     from k_agents.experiment import Experiment
@@ -46,6 +47,7 @@ class VisualInspectionAgent(InspectionAgent):
         spinner_id = show_spinner(f"Inspection agent reading the plot...")
         figure_obj = self.plot_func(exp)
         image = matplotlib_plotly_to_pil(figure_obj)
+        display_image(image)
         inspect_answer = run_visual_inspection(image, self.prompt, self.calling_path)
         hide_spinner(spinner_id)
         if inspect_answer is not None:
@@ -54,7 +56,8 @@ class VisualInspectionAgent(InspectionAgent):
             display_chat(agent_name=f"Inspection Agent", content='<br>' + html,
                          background_color=color)
 
-        self.save_figure_to_exp(exp, figure_obj, image)
+        # disable for saving memory
+        #self.save_figure_to_exp(exp, figure_obj, image)
         return inspect_answer
 
     def save_figure_to_exp(self, exp: Experiment, figure_obj, image):

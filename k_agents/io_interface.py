@@ -8,10 +8,20 @@ from pygments.lexers import PythonLexer
 from IPython.display import display, HTML
 
 display_impl = print
+show_spinner_impl = lambda x: None
+hide_spinner_impl = lambda x: None
+display_image_impl = lambda x: None
 
 def set_jupyter_display_impl():
-    global display_impl
+    global display_impl, show_spinner_impl, hide_spinner_impl, display_image_impl
     display_impl = display
+    show_spinner_impl = show_spinner_jupyter
+    hide_spinner_impl = hide_spinner_jupyter
+    display_image_impl = display
+
+def display_image(image):
+    display_image_impl(image)
+
 
 # check if in the Jupyter notebook
 try:
@@ -22,14 +32,25 @@ except:
     pass
 
 def set_streamlit_display_impl():
-    global display_impl
-    from streamlit import html
+    global display_impl, show_spinner_impl, hide_spinner_impl, display_image_impl
+    from streamlit import html, image
     from stqdm import stqdm
     mllm.utils.maps.default_parallel_map_config["pbar"] = stqdm
     display_impl = html
+    show_spinner_impl = show_spinner_streamlit
+    hide_spinner_impl = hide_spinner_streamlit
+    display_image_impl = image
 
+def show_spinner_streamlit(text="Processing..."):
+    from streamlit import spinner
+    context = spinner(text)
+    context.__enter__()
+    return context
 
-def show_spinner(text="Processing..."):
+def hide_spinner_streamlit(spinner):
+    spinner.__exit__(None, None, None)
+
+def show_spinner_jupyter(text="Processing..."):
     """
     Displays a spinner with a specified text to indicate processing.
 
@@ -39,63 +60,50 @@ def show_spinner(text="Processing..."):
     Returns:
     str: A unique identifier for the spinner element.
     """
-    ...
+    spinner_id = str(uuid.uuid4())
 
-def hide_spinner(spinner_id):
+    # Create and display the spinner HTML element
+    spinner_html = HTML(f"""
+        <div id="{spinner_id}" style="font-size:16px;">
+            <i class="fa fa-spinner fa-spin"></i> {text}
+        </div>
+        """)
+    display(spinner_html)
+
+    # Return the unique ID for future reference (e.g., to hide the spinner)
+    return spinner_id
+
+def hide_spinner_jupyter(spinner_id):
     """
     Hides and removes the spinner identified by spinner_id from the display.
 
     Args:
     spinner_id (str): The unique identifier of the spinner to hide.
     """
-    ...
-
-
-class Spinner:
-    def __init__(self, text="Processing..."):
-        self.text = text
-        self.spinner_id = None
-
-    def show(self):
-        self.spinner_id = show_spinner(self.text)
-
-    def hide(self):
-        if self.spinner_id:
-            hide_spinner(self.spinner_id)
-            self.spinner_id = None
-
-    def __enter__(self):
-        self.show()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.hide()
-
-
-def change_spinner_text(spinner_id, new_text):
-    """
-    Changes the text of the spinner identified by spinner_id.
-
-    Args:
-    spinner_id (str): The unique identifier of the spinner.
-    new_text (str): The new text to display in the spinner.
-    """
-    # Create and execute JavaScript to change the text of the spinner element
-    change_text_js = Javascript(f"""
+    # Create and execute JavaScript to hide and remove the spinner element
+    hide_spinner_js = Javascript(f"""
     var spinnerElement = document.getElementById('{spinner_id}');
     if (spinnerElement) {{
-        spinnerElement.textContent = '{new_text}';  // Change the text content of the spinner element
+        spinnerElement.remove();  // Remove the spinner element from the DOM
     }} else {{
-        // Retry changing text after a short delay if the spinner is not immediately found
+        // Retry removing the spinner after a short delay if not immediately found
         window.setTimeout(() => {{
             var spinnerElement = document.getElementById('{spinner_id}');
             if (spinnerElement) {{
-                spinnerElement.textContent = '{new_text}';
+                spinnerElement.remove();
             }}
-        }}, 50);
+        }}, 100);
     }}
     """)
-    display(change_text_js)
+    display(hide_spinner_js)
+
+
+def show_spinner(text="Processing..."):
+    return show_spinner_impl(text)
+
+def hide_spinner(spinner_id):
+    hide_spinner_impl(spinner_id)
+
 
 
 def dict_to_html(data_dict) -> str:
