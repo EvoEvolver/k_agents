@@ -5,9 +5,10 @@ from leeq.theory.simulation.numpy.rotated_frame_simulator import VirtualTransmon
 from leeq import ExperimentManager
 
 manager = ExperimentManager()
-manager.clear_setups()
+
 
 def get_virtual_qubit_pair():
+    manager.clear_setups()
     virtual_transmon_1 = VirtualTransmon(
         name="VQubit_1",
         qubit_frequency=5040.4,

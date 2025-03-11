@@ -97,7 +97,7 @@ def draw_runner():
         else:
             suggested_procedure = ""
         required_output = st.text_area(label="Experiment procedure", value=suggested_procedure)
-
+        st.write("More procedures in the knowledge base!")
         variables = st.session_state["variables"]
         if len(variables) != 0:
             st.write("Variables:")
