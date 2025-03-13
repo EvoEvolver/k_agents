@@ -7,9 +7,10 @@ import dotenv
 dotenv.load_dotenv()
 st.set_page_config(page_title="K-agents example", page_icon="🧠", layout="wide")
 
-init_translation_agents(example_lab)
-env = TranslationAgentEnv()
-st.session_state["agent_env"] = env
-st.session_state["variables"] = {}
-k_agents_app()
+def initialize():
+    init_translation_agents(example_lab)
+    env = TranslationAgentEnv()
+    st.session_state["agent_env"] = env
+    st.session_state["variables"] = {}
+k_agents_app(initialize)
 

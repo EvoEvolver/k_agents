@@ -14,18 +14,19 @@ mllm.config.default_models.normal = "gpt-4o"
 
 st.set_page_config(page_title="K-agents for leeq", page_icon="🧠⚛️", layout="wide")
 
-if "agent_env" not in st.session_state:
-    init_leeq_translation_agents()
-    env = TranslationAgentEnv()
-    st.session_state["agent_env"] = env
+def initialize():
+    if "agent_env" not in st.session_state:
+        init_leeq_translation_agents()
+        env = TranslationAgentEnv()
+        st.session_state["agent_env"] = env
 
-if "variables" not in st.session_state:
-    qubit_1, qubit_2 = get_virtual_qubit_pair()
-    ExperimentManager().status().set_param("Plot_Result_In_Jupyter", False)
-    st.session_state["variables"] = {"dut_1": qubit_1, "dut_2": qubit_2, "duts": (qubit_1, qubit_2)}
+    if "variables" not in st.session_state:
+        qubit_1, qubit_2 = get_virtual_qubit_pair()
+        ExperimentManager().status().set_param("Plot_Result_In_Jupyter", False)
+        st.session_state["variables"] = {"dut_1": qubit_1, "dut_2": qubit_2, "duts": (qubit_1, qubit_2)}
 
-if "suggested_procedure" not in st.session_state:
-    st.session_state["suggested_procedure"] = "Two level Two-qubit calibration on `duts`"
+    if "suggested_procedure" not in st.session_state:
+        st.session_state["suggested_procedure"] = "Two level Two-qubit calibration on `duts`"
 
-k_agents_app()
+k_agents_app(initialize)
 
