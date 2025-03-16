@@ -28,5 +28,23 @@ def initialize():
     if "suggested_procedure" not in st.session_state:
         st.session_state["suggested_procedure"] = "Two level Two-qubit calibration on `duts`"
 
+    def contents():
+        st.write("""
+        # Welcome to the Leeq AI assistant.
+        
+        - You can operate the virtual qubits `dut_1` and `dut_2` by natural language instructions.
+        - For example, you can calibrate the qubits by saying "Fully calibrate single qubit `dut_1`".
+        - You can also calibrate the two qubit gates by saying "Two level Two-qubit calibration on `duts`".
+        - More instructions are available in the knowledge base.
+        
+        ## Limitations
+        - The experiments are not planned by the language model because they does not have the knowledge of the experiments.
+        - The system interprets your instruction by its knowledge base, and k-agents provide handy interfaces to construct the knowledge base.
+        
+        """)
+
+    if "contents" not in st.session_state:
+        st.session_state["contents"] =contents
+
 k_agents_app(initialize)
 

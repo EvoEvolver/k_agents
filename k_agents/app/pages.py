@@ -107,6 +107,9 @@ def draw_runner():
 
         button = st.button("Run")
 
+    if "contents" in st.session_state:
+        st.session_state["contents"]()
+
     if button:
         if not openai_api_key:
             if os.environ.get("OPENAI_API_KEY") is not None:
