@@ -10,6 +10,7 @@ from mllm.utils.maps import p_map
 
 from .recall_logger import RecallLogger, to_log_item
 from .w_memory import WMemoryItem, WMemorySuppressingItem, WorkingMemory
+#from ..translation.bm25_retrieval import get_bm25_score
 
 
 class RetrievableAgent:
@@ -38,6 +39,14 @@ class RetrievableAgent:
         return "RetrievableAgent('" + self.description + "')"
 
 
+def get_bm25_score_for_agent(agent: EmbedAgent, w_memory: WorkingMemory):
+    if len(agent._embed_src) == 0:
+        return 0
+    bm25_scores = get_bm25_score(agent._embed_src, w_memory.stimuli)
+    bm25_score = max(bm25_scores)
+    return bm25_score
+
+
 class EmbedAgent(RetrievableAgent):
     def __init__(self, description, embed_src: List[str]):
         super().__init__(description)
@@ -59,7 +68,10 @@ class EmbedAgent(RetrievableAgent):
         similarities = np.dot(np.array(self.embeddings), w_memory.stimuli_embeddings.T)
         similarities = np.max(similarities, axis=0)
         score = np.max(similarities)
+        #bm25_score = get_bm25_score_for_agent(self, w_memory) - 0.7
+        #score = max(bm25_score, score)
         return score
+
 
     def run_agent(self, w_memory: WorkingMemory) -> AgentResult:
         raise NotImplementedError
@@ -183,8 +195,8 @@ class AgentGroup:
             this_score = scores[this_index]
             if this_score < 0:
                 continue
-            if this_score > 1.0:
-                must_trigger_agent.append(this_agent)
+            #if this_score > 1.0:
+            #    must_trigger_agent.append(this_agent)
             else:
                 agent_list.append(this_agent)
         agent_list.extend(must_trigger_agent)

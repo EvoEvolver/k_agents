@@ -88,6 +88,13 @@ experiment_instance = {self.label}(instruction="""{res["rewritten_instruction"]}
         agent_res.add_new_wm_content(code_suggestion, tag="code_suggestion")
         return agent_res
 
+    def get_score(self, w_memory: WorkingMemory):
+        stimuli = w_memory.stimuli
+        for stim in stimuli:
+            if self.title in stim:
+                return 2.0
+        return EmbedAgent.get_score(self, w_memory)
+
 
 def extract_procedure_contents(markdown_path):
     with open(markdown_path, "r") as f:

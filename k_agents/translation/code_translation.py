@@ -105,13 +105,13 @@ class ExpCodeTranslationAgent(EmbedAgent):
         else:
             available_variables = available_variables[0]
         prompt = f"""
-You are trying to call an experiment to fill the code_to_complete in Python. The description of the task is written in the slot.
+You are trying to call an experiment to implement an instruction in Python. The description of the task is written in the slot.
 <experiment>
 {self.get_exp_description()}
 </experiment>
-<code_to_complete>
-# [slot: {instruction}]
-</code_to_complete>
+<instruction>
+{instruction}
+</instruction>
 <available_variables>
 {available_variables}
 </available_variables>
@@ -166,3 +166,10 @@ Experiment signature:
 {inspect.getdoc(self.exp_cls.run)} 
 <document>
 """
+
+    def get_score(self, w_memory: WorkingMemory):
+        stimuli = w_memory.stimuli
+        for stim in stimuli:
+            if self.exp_name in stim:
+                return 2.0
+        return EmbedAgent.get_score(self, w_memory)
