@@ -26,7 +26,7 @@ def initialize():
         st.session_state["variables"] = {"dut_1": qubit_1, "dut_2": qubit_2, "duts": (qubit_1, qubit_2)}
 
     if "suggested_procedure" not in st.session_state:
-        st.session_state["suggested_procedure"] = "Two level Two-qubit calibration on `duts`"
+        st.session_state["suggested_procedure"] = "Fully calibrate single qubit `dut_1`"
 
     def contents():
         st.write("""
