@@ -1,8 +1,13 @@
-# k_agents
+# k-agents
 
 Knowledge agents for lab automation.
 
 ![img.png](assets/img.png)
+
+
+Play k-agents at the [Online demo](https://kagents.up.railway.app/)!
+
+Paper: [arXiv:2412.07978](https://arxiv.org/abs/2412.07978)
 
 ## Why k-agents
 
