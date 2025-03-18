@@ -41,7 +41,11 @@ def get_virtual_qubit_pair():
         name='HighLevelSimulationSetup',
         virtual_qubits={2: virtual_transmon_1,
                         4: virtual_transmon_2
-                        }
+                        },
+        omega_to_amp_map={
+            2: 100,
+            4: 100
+        }
     )
     setup.set_coupling_strength_by_qubit(
         virtual_transmon_1, virtual_transmon_2, coupling_strength=1.5)

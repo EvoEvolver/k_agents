@@ -263,10 +263,10 @@ def find_the_stage_label_based_on_description(stages: List[Stage], description: 
     </stages>
 
     Return format:
-        {{
-        “analysis”: str,
-        "stage_label": str
-        }}
+    {{
+    “analysis”: str, a analysis of the stage label based on the description.
+    "stage_label": str, a stage label from the available stages.
+    }}
     """
 
     chat = mllm.Chat(prompt,
