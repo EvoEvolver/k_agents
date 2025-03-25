@@ -92,23 +92,25 @@ def draw_runner():
         else:
             openai_api_key = os.environ.get("OPENAI_API_KEY")
 
-        if "suggested_procedure" in st.session_state:
-            suggested_procedure = st.session_state["suggested_procedure"]
-        else:
-            suggested_procedure = ""
-        required_output = st.text_area(label="Experiment procedure", value=suggested_procedure)
-        st.write("More procedures in the knowledge base!")
-        variables = st.session_state["variables"]
-        if len(variables) != 0:
-            st.write("Variables:")
-        for key, value in variables.items():
-            st.write(f"`{key}`: `{value}`")
-
-
-        button = st.button("Run")
-
     if "contents" in st.session_state:
         st.session_state["contents"]()
+
+    if "suggested_procedure" in st.session_state:
+        suggested_procedure = st.session_state["suggested_procedure"]
+    else:
+        suggested_procedure = ""
+    required_output = st.text_area(label="Experiment procedure", value=suggested_procedure)
+    st.write("More procedures in the knowledge base!")
+    variables = st.session_state["variables"]
+    if len(variables) != 0:
+        st.write("Variables:")
+    for key, value in variables.items():
+        st.write(f"`{key}`: `{value}`")
+
+
+    button = st.button("Run")
+
+
 
     if button:
         if not openai_api_key:
