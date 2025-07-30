@@ -105,7 +105,7 @@ class ExpCodeTranslationAgent(EmbedAgent):
         else:
             available_variables = available_variables[0]
         prompt = f"""
-You are trying to call an experiment to implement an instruction in Python. The description of the task is written in the slot.
+You are trying to call an experiment to implement an instruction in Python. The description of the task is written in <instruction>.
 <experiment>
 {self.get_exp_description()}
 </experiment>
@@ -117,10 +117,10 @@ You are trying to call an experiment to implement an instruction in Python. The 
 </available_variables>
 <requirements>
 You should output a JSON dict. The keys should be
-- "experiment_name_in_slot" (string): The name of the experiment extracted from the slot.
-- "analysis" : The brief analysis of the relation between the experiment and the code_to_complete. You should notice that the code_to_complete might be irrelevant to the experiment. You should be careful not to assume additional information. The experiment should considered irrelevant if it contains extra keywords or irrelevant information.
+- "experiment_name_in_instruction" (string): The name of the experiment extracted from <instruction>.
+- "analysis" : The brief analysis of the relation between the <experiment> and the <instruction>. You should notice that the <instruction> might be irrelevant to the experiment. You should be careful not to assume additional information. The experiment should considered irrelevant if it contains extra keywords or irrelevant information.
 - "applicable": A boolean whether the experiment you hold is suitable for implementing the task. 
-- "code": A code snippet that is helpful for filling the slot. The last line of the snippet must be in the format: `experiment_<name> = {self.exp_cls.__name__}(argument1,argument2, ...)`. No import statements are needed.
+- "code": A code snippet for implementing <instruction>. The last line of the snippet must be in the format: `experiment_<name> = {self.exp_cls.__name__}(argument1,argument2, ...)`. No import statements are needed.
 - "explanation": A detailed explanation of what the code snippet does based solely on the documentation.
 - "suitable": A boolean whether the code snippet matches the task based on the documentation.
 </requirements>

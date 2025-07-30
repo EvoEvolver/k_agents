@@ -107,18 +107,18 @@ Your task is to generate new code for the context described below.
 <available_variables>
 {available_variables}
 </available_variables>
-<code_to_complete> 
-# [slot: {instruction}]
-</code_to_complete>
+<instruction> 
+{instruction}
+</instruction>
 You must use the following code_suggestions to generate the code:
 {code_suggestions}
 </context>
 <requirements>
-You are required to adopt code from one of <code_suggestion> that can be used to fill the slot in <code_to_complete>.
-- The adopted code should absolutely just be what should appear in the place of # [slot]. 
+You are required to adapt code from one of <code_suggestion> that can be used to implement the <instruction>.
+- The adapted code should absolutely just be what should implement <instruction>. 
 - Some of the <code_suggestion> might be misleading. But you must pick the most relevant one.
-You should first output an analysis of which code suggestion should be used to fill the slot in <code_to_complete>.
-Then, wrapped by ```python and ```, output the new code that can fill the slot in <code_to_complete>. The last line of the generated code must be in the format: `experiment_<ExperimentName> = <ExperimentName>(argument1,argument2, ...)`. The code must be executable. No placeholders are allowed. No import statements are allowed.
+You should first output an analysis of which code suggestion should be used to implement <instruction>.
+Then, wrapped by ```python and ```, output the new code that can implement <instruction>. The last line of the generated code must be in the format: `experiment_<ExperimentName> = <ExperimentName>(argument1,argument2, ...)`. The code must be executable. No placeholders are allowed. No import statements are allowed.
 </requirements>
         """
         chat = Chat(prompt)
@@ -192,10 +192,10 @@ You must use the following code_suggestion to generate the code:
 </code_suggestion>
 </context>
 <requirements>
-You are required to adopt code from <code_suggestion> that can be used to fill the slot in <code_to_complete>.
+You are required to adopt code from <code_suggestion> that can be used to implement <instruction>.
 - If the code from the suggestion is not executable due to Python syntax error, you should rewrite it to make it executable.
 - You should first output an analysis of the code suggestion.
-- Then, wrapped by ```python and ```, output the new code that can implement the instruction in <code_to_complete>. The last line of the generated code must be in the format: `experiment_<ExperimentName> = <ExperimentName>(argument1,argument2, ...)`.
+- Then, wrapped by ```python and ```, output the new code that can implement the <instruction>. The last line of the generated code must be in the format: `experiment_<ExperimentName> = <ExperimentName>(argument1,argument2, ...)`.
  - The code must be executable. No placeholders are allowed. No import statements are allowed.
 </requirements>
         """
