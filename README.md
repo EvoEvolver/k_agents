@@ -9,6 +9,49 @@ Play k-agents at the [Online demo](https://kagents.up.railway.app/)!
 
 Paper: [arXiv:2412.07978](https://arxiv.org/abs/2412.07978)
 
+## Installation and development
+
+The project uses Python 3.11 or later. Install
+[uv](https://docs.astral.sh/uv/getting-started/installation/), then sync
+the locked Python environment:
+
+```sh
+uv sync --locked --extra app
+uv run --locked kaleido_get_chrome
+uv run --locked --extra app streamlit run application/example_lab/example_app.py
+```
+
+The default text and vision LLM is `gpt-5.6-luna`. Set `OPENAI_API_KEY` in
+your environment or enter it in the app. Embeddings retain their separate model.
+You can override `mllm.config.default_models` after importing `k_agents`.
+
+To run the LeeQ simulation used by the online demo:
+
+```sh
+uv sync --locked --extra leeq
+uv run --locked --extra leeq streamlit run application/leeq/leeq_app.py
+```
+
+Dependencies are declared in `pyproject.toml` and pinned in `uv.lock`. Use
+`uv add` to add dependencies and `uv lock --upgrade` to update the lockfile.
+Run the image export regression tests with `uv run --locked pytest -q`
+after installing Chrome.
+
+## Deployment
+
+The Docker image uses `uv sync --locked --extra leeq --no-dev` and includes
+Chromium for Kaleido's Plotly image export. The build runs an actual image export
+so a missing or unusable browser fails the build before deployment. Outside
+Docker, install Chrome with `uv run --locked kaleido_get_chrome`, or point
+`BROWSER_PATH` at an existing compatible browser.
+
+```sh
+docker build -t k-agents .
+docker run --rm -p 8080:8080 --env OPENAI_API_KEY k-agents
+```
+
+The app listens on `PORT` (default `8080`). Its health endpoint is `/_stcore/health`.
+
 ## Why k-agents
 
 **Motivation**

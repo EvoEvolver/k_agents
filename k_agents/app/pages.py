@@ -10,10 +10,6 @@ from k_agents.inspection.agents import TextInspectionAgent, VisualInspectionAgen
 from k_agents.translation.code_translation import ExpCodeTranslationAgent
 from k_agents.translation.env import TranslationAgentEnv
 from k_agents.translation.procedure_translation import ProcedureTranslationAgent
-from mllm.config import default_models
-
-default_models.normal = "gpt-5.4-mini"
-default_models.expensive = "gpt-5.4-mini"
 
 
 

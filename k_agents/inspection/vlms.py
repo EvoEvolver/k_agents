@@ -94,11 +94,7 @@ def matplotlib_plotly_to_pil(fig: Union[go.Figure, plt.Figure]):
 
     buf = io.BytesIO()
     if isinstance(fig, go.Figure):
-        if os.name == 'nt':
-            engine = "orca"
-        else:
-            engine = "kaleido"
-        fig.write_image(buf,format='png',engine=engine)
+        fig.write_image(buf, format='png')
         # close the figure and release the memory
 
     elif isinstance(fig, plt.Figure):

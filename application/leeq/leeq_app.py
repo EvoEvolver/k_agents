@@ -1,5 +1,3 @@
-import mllm.config
-
 from application.leeq.simulated_setup_2 import get_virtual_qubit_pair
 from simulated_setup import *
 from leeq.utils.ai.translation_agent import init_leeq_translation_agents
@@ -8,9 +6,6 @@ from k_agents.translation.env import TranslationAgentEnv
 from k_agents.app import k_agents_app
 import dotenv
 dotenv.load_dotenv()
-
-mllm.config.default_models.expensive = "gpt-4o"
-mllm.config.default_models.normal = "gpt-4o"
 
 st.set_page_config(page_title="K-agents for leeq", page_icon="🧠⚛️", layout="wide")
 
@@ -47,4 +42,3 @@ def initialize():
         st.session_state["contents"] =contents
 
 k_agents_app(initialize)
-

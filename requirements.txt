@@ -1,9 +1,0 @@
-MinimalLLM
-fibers @ git+https://github.com/EvoEvolver/Fibers.git
-markdownify
-ipywidgets
-asteval
-matplotlib
-matplotlib-inline
-plotly
-numpy

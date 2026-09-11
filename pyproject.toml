@@ -1,28 +1,60 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "k_agents"
 description = "Automated experiments with knowledge agents"
 version = "1.0.0"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 authors = [
     { name = "Zijian Zhang" },
     { name = "Shuxiang Cao" }
 ]
-dynamic = ["dependencies"]
+dependencies = [
+    "MinimalLLM @ git+https://github.com/EvoEvolver/MinimalLLM",
+    "litellm>=1.100.1",
+    "fibers @ git+https://github.com/EvoEvolver/Fibers.git",
+    "markdownify",
+    "ipywidgets",
+    "asteval",
+    "matplotlib",
+    "matplotlib-inline",
+    "plotly>=6.1.1",
+    "kaleido>=1,<2",
+    "numpy",
+    "nltk",
+    "rank-bm25",
+]
 
 readme = "README.md"
 
-[tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
-
 [project.optional-dependencies]
-dev = [
-    "pytest"
+app = ["streamlit", "stqdm", "python-dotenv"]
+leeq = [
+    "leeq @ git+https://github.com/ShuxiangCao/LeeQ@k_agents",
+    "streamlit",
+    "stqdm",
+    "python-dotenv",
 ]
 
-[tool.setuptools]
-packages = ["k_agents"]
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["k_agents*"]
+
+# LeeQ's published metadata points back to a Git copy of k_agents. Keep its
+# runtime dependencies, but let the root project supply k_agents itself.
+[[tool.uv.dependency-metadata]]
+name = "leeq"
+version = "0.0.1"
+requires-python = ">=3.10"
+requires-dist = [
+    "scipy", "matplotlib", "matplotlib-inline", "numpy<2", "plotly",
+    "dash", "dash-bootstrap-components", "qutip", "scikit-learn", "tqdm",
+    "h5py", "decorator", "pytest", "fsspec", "pyyaml", "uncertainties",
+    "MinimalLLM", "ipywidgets", "kaleido", "pandas", "dill",
+    "labchronicle @ git+https://github.com/ShuxiangCao/LabChronicle",
+]
