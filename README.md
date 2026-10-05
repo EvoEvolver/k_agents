@@ -8,8 +8,6 @@ Knowledge agents for lab automation.
 ![img.png](assets/img.png)
 
 
-Play k-agents at the [Online demo](https://kagents.up.railway.app/)!
-
 Paper: [arXiv:2412.07978](https://arxiv.org/abs/2412.07978)
 
 ## Installation and development
@@ -28,7 +26,7 @@ The default text and vision LLM is `gpt-5.6-luna`. Set `OPENAI_API_KEY` in
 your environment or enter it in the app. Embeddings retain their separate model.
 You can override `mllm.config.default_models` after importing `k_agents`.
 
-To run the LeeQ simulation used by the online demo:
+To run the LeeQ simulation:
 
 ```sh
 uv sync --locked --extra leeq
