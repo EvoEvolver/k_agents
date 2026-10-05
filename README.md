@@ -1,5 +1,8 @@
 # k-agents
 
+> **This project has fulfilled its mission.** If you are interested in this work,
+> please visit [NVIDIA's Quantum Calibration Agent Blueprint](https://github.com/NVIDIA/Quantum-Calibration-Agent-Blueprint/).
+
 Knowledge agents for lab automation.
 
 ![img.png](assets/img.png)
